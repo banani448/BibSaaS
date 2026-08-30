@@ -1,0 +1,293 @@
+
+// server/src/services/providers/airtel.provider.js
+
+const axios = require("axios");
+
+class AirtelProvider {
+  constructor() {
+    this.enabled =
+      process.env.AIRTEL_ENABLED !== "false";
+
+    this.baseUrl =
+      process.env.AIRTEL_BASE_URL;
+
+    this.clientId =
+      process.env.AIRTEL_CLIENT_ID;
+
+    this.clientSecret =
+      process.env.AIRTEL_CLIENT_SECRET;
+  }
+
+  ensureConfigured() {
+    if (!this.enabled) {
+      throw new Error(
+        "Airtel Money is disabled"
+      );
+    }
+
+    if (!this.baseUrl) {
+      throw new Error(
+        "AIRTEL_BASE_URL is not configured"
+      );
+    }
+
+    if (!this.clientId) {
+      throw new Error(
+        "AIRTEL_CLIENT_ID is not configured"
+      );
+    }
+
+    if (!this.clientSecret) {
+      throw new Error(
+        "AIRTEL_CLIENT_SECRET is not configured"
+      );
+    }
+  }
+
+  async getAccessToken() {
+    this.ensureConfigured();
+
+    const response =
+      await axios.post(
+        `${this.baseUrl}/auth/oauth2/token`,
+        {
+          client_id:
+            this.clientId,
+
+          client_secret:
+            this.clientSecret,
+
+          grant_type:
+            "client_credentials",
+        },
+        {
+          timeout: 30000,
+        }
+      );
+
+    return response.data.access_token;
+  }
+
+  async initiatePayment({
+    payment,
+    amount,
+    phone,
+    currency,
+    idempotencyKey,
+  }) {
+    const token =
+      await this.getAccessToken();
+
+    const response =
+      await axios.post(
+        `${this.baseUrl}/merchant/v1/payments/`,
+        {
+          reference:
+            payment.transactionReference,
+
+          subscriber: {
+            country:
+              payment.country ||
+              "CG",
+
+            currency,
+
+            msisdn:
+              phone,
+          },
+
+          transaction: {
+            amount,
+
+            country:
+              payment.country ||
+              "CG",
+
+            currency,
+
+            id:
+              payment.transactionReference,
+          },
+        },
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+
+            "Content-Type":
+              "application/json",
+
+            "X-Idempotency-Key":
+              idempotencyKey,
+          },
+
+          timeout: 60000,
+        }
+      );
+
+    return {
+      status:
+        "PROCESSING",
+
+      providerTransactionId:
+        response.data?.data?.transaction?.id ||
+        payment.transactionReference,
+
+      providerPaymentId:
+        response.data?.data?.transaction?.id,
+
+      providerStatus:
+        response.data?.status ||
+        "PROCESSING",
+
+      instructions:
+        "Confirmez la demande sur votre téléphone Airtel Money.",
+    };
+  }
+
+  async verifyPayment(payment) {
+    const token =
+      await this.getAccessToken();
+
+    const response =
+      await axios.get(
+        `${this.baseUrl}/standard/v1/payments/${payment.providerTransactionId}`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+
+          timeout: 30000,
+        }
+      );
+
+    const providerStatus =
+      String(
+        response.data?.data?.transaction?.status ||
+        response.data?.status ||
+        ""
+      ).toUpperCase();
+
+    let status =
+      "PROCESSING";
+
+    if (
+      providerStatus ===
+      "SUCCESS"
+    ) {
+      status = "SUCCESS";
+    }
+
+    if (
+      providerStatus ===
+        "FAILED" ||
+      providerStatus ===
+        "CANCELLED"
+    ) {
+      status =
+        providerStatus ===
+        "CANCELLED"
+          ? "CANCELLED"
+          : "FAILED";
+    }
+
+    return {
+      status,
+
+      providerStatus,
+
+      providerTransactionId:
+        payment.providerTransactionId,
+    };
+  }
+
+  async handleWebhook({
+    body,
+    headers,
+  }) {
+    /*
+     * Adapter la vérification de signature
+     * au webhook Airtel officiel utilisé.
+     */
+
+    const transaction =
+      body.transaction ||
+      body.data?.transaction ||
+      {};
+
+    const providerTransactionId =
+      transaction.id ||
+      body.transactionId;
+
+    const transactionReference =
+      transaction.reference ||
+      body.reference;
+
+    const providerStatus =
+      String(
+        transaction.status ||
+        body.status ||
+        ""
+      ).toUpperCase();
+
+    let status =
+      "PROCESSING";
+
+    if (
+      providerStatus ===
+      "SUCCESS"
+    ) {
+      status = "SUCCESS";
+    }
+
+    if (
+      providerStatus ===
+        "FAILED" ||
+      providerStatus ===
+        "CANCELLED"
+    ) {
+      status =
+        providerStatus ===
+        "CANCELLED"
+          ? "CANCELLED"
+          : "FAILED";
+    }
+
+    return {
+      providerTransactionId,
+
+      providerEventId:
+        body.eventId ||
+        providerTransactionId,
+
+      transactionReference,
+
+      status,
+
+      amount:
+        transaction.amount
+          ? Number(
+              transaction.amount
+            )
+          : undefined,
+
+      currency:
+        transaction.currency,
+
+      providerStatus,
+
+      payload:
+        body,
+
+      signatureVerified:
+        Boolean(
+          headers?.[
+            "x-signature"
+          ]
+        ),
+    };
+  }
+}
+
+module.exports = AirtelProvider;

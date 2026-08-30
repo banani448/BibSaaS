@@ -1,0 +1,135 @@
+# ==========================================================
+# BibSaaS Premium - Docker Compose
+# ==========================================================
+
+services:
+
+  # ========================================================
+  # BIBSAAS API
+  # ========================================================
+
+  api:
+    container_name: bibsaas-api
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - .env
+
+    environment:
+      NODE_ENV: production
+
+      DATABASE_URL: ${DATABASE_URL}
+
+      DIRECT_URL: ${DIRECT_URL}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - bibsaas-network
+
+    volumes:
+      - bibsaas-uploads:/app/uploads
+      - bibsaas-logs:/app/logs
+
+
+  # ========================================================
+  # POSTGRESQL LOCAL
+  # ========================================================
+
+  postgres:
+    image: postgres:16-alpine
+
+    container_name: bibsaas-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bibsaas}
+      POSTGRES_USER: ${POSTGRES_USER:-bibsaas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bibsaas_dev_password}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - bibsaas-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-bibsaas} -d ${POSTGRES_DB:-bibsaas}"
+        ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - bibsaas-network
+
+
+  # ========================================================
+  # REDIS
+  # ========================================================
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: bibsaas-redis
+
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - yes
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - bibsaas-redis-data:/data
+
+    networks:
+      - bibsaas-network
+
+
+# ==========================================================
+# VOLUMES
+# ==========================================================
+
+volumes:
+
+  bibsaas-postgres-data:
+    name: bibsaas-postgres-data
+
+  bibsaas-redis-data:
+    name: bibsaas-redis-data
+
+  bibsaas-uploads:
+    name: bibsaas-uploads
+
+  bibsaas-logs:
+    name: bibsaas-logs
+
+
+# ==========================================================
+# NETWORK
+# ==========================================================
+
+networks:
+
+  bibsaas-network:
+    name: bibsaas-network
+    driver: bridge

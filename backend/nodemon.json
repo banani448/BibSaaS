@@ -1,0 +1,23 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ext": "ts,json",
+  "ignore": [
+    "node_modules",
+    "coverage",
+    "dist",
+    "uploads",
+    "logs",
+    "*.log"
+  ],
+  "exec": "ts-node src/server.ts",
+  "delay": "500",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "restartable": "rs",
+  "verbose": true,
+  "signal": "SIGTERM"
+}
+

@@ -1,0 +1,1816 @@
+// =====================================================
+// BibSaaS Premium v1.0
+// Prisma + Supabase PostgreSQL
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  CLIENT
+  BARBER
+  SALON
+  SALON_CHAIN
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Currency {
+  XAF
+  EUR
+  USD
+  GBP
+  CAD
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+  DELETED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum SubscriptionType {
+  CLIENT_BASIC
+  CLIENT_PREMIUM
+  BARBER
+  SALON
+  SALON_CHAIN
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  SIMULATED
+  STRIPE
+  MTN_MOBILE_MONEY
+  AIRTEL_MONEY
+  PAYPAL
+  MANUAL
+}
+
+enum PaymentMethod {
+  SIMULATED
+  MTN_MOBILE_MONEY
+  AIRTEL_MONEY
+  CARD
+  VISA
+  MASTERCARD
+  AMERICAN_EXPRESS
+  DISCOVER
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CASH
+  WALLET
+  OTHER
+}
+
+enum PaymentEnvironment {
+  TEST
+  SANDBOX
+  PRODUCTION
+}
+
+enum PaymentEventType {
+  INITIATED
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+  WEBHOOK_RECEIVED
+  WEBHOOK_VERIFIED
+  WEBHOOK_REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingType {
+  CLIENT_VISIT
+  HOME_SERVICE
+  ONLINE_CONSULTATION
+}
+
+enum SalonStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum SalonMemberRole {
+  OWNER
+  MANAGER
+  BARBER
+  STAFF
+}
+
+enum FaceShape {
+  OVAL
+  ROUND
+  SQUARE
+  RECTANGULAR
+  HEART
+  DIAMOND
+  OBLONG
+  TRIANGLE
+  UNKNOWN
+}
+
+enum RecommendationStatus {
+  GENERATED
+  SAVED
+  ARCHIVED
+}
+
+enum NotificationType {
+  SYSTEM
+  ACCOUNT
+  SECURITY
+  PAYMENT
+  SUBSCRIPTION
+  BOOKING
+  REMINDER
+  RECOMMENDATION
+  PROMOTION
+  MARKETING
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+  PASSWORD_RESET
+  ROLE_ASSIGNED
+  ROLE_REMOVED
+  PAYMENT_CREATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_UPDATED
+  SUBSCRIPTION_CANCELLED
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  ADMIN_ACTION
+  SECURITY_EVENT
+  APPROVE
+  REJECT
+}
+
+enum CountryCode {
+  CG
+  CM
+  CI
+  SN
+  GA
+  CD
+  FR
+  BE
+  CA
+  US
+  GB
+}
+
+enum HairstyleCategory {
+  FADE
+  TAPER
+  BUZZ_CUT
+  CREW_CUT
+  AFRO
+  DREADLOCKS
+  BRAIDS
+  TWISTS
+  CORNROWS
+  CURLY
+  WAVY
+  STRAIGHT
+  MOHAWK
+  POMPADOUR
+  UNDERCUT
+  TEXTURED
+  CLASSIC
+  MODERN
+  OTHER
+}
+
+enum HairstyleGender {
+  MEN
+  WOMEN
+  UNISEX
+}
+
+enum HairstyleDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum StorageProvider {
+  SUPABASE
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum HairTexture {
+  STRAIGHT
+  WAVY
+  CURLY
+  COILY
+  KINKY
+  UNKNOWN
+}
+
+enum HairDensity {
+  LOW
+  MEDIUM
+  HIGH
+  UNKNOWN
+}
+
+enum HairLength {
+  VERY_SHORT
+  SHORT
+  MEDIUM
+  LONG
+  VERY_LONG
+  UNKNOWN
+}
+
+enum FaceAnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AIProvider {
+  OPENAI
+  OLLAMA
+  GOOGLE_GEMINI
+  ANTHROPIC
+  LOCAL_MODEL
+  OTHER
+}
+
+// =====================================================
+// USERS
+// =====================================================
+
+model User {
+  id                String              @id @default(cuid())
+
+  email             String              @unique
+  phone             String?             @unique
+  password          String
+
+  role              UserRole            @default(CLIENT)
+  status            AccountStatus       @default(PENDING)
+
+  emailVerified     Boolean             @default(false)
+  phoneVerified     Boolean             @default(false)
+
+  lastLoginAt       DateTime?
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  profile           Profile?
+  preferences       UserPreference?
+
+  subscriptions     Subscription[]
+  payments          Payment[]
+  invoices          Invoice[]
+
+  bookings          Booking[]           @relation("ClientBookings")
+
+  faceAnalyses      FaceAnalysis[]
+  recommendations   Recommendation[]
+
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+
+  refreshTokens     RefreshToken[]
+  sessions          UserSession[]
+
+  salonMemberships  SalonMember[]
+  ownedSalons       Salon[]             @relation("SalonOwner")
+  ownedChains       SalonChain[]
+
+  barberProfile     Barber?
+
+  reviews           Review[]
+  favorites         FavoriteHairstyle[]
+  couponUsages      CouponUsage[]
+
+  passwordResets    PasswordResetToken[]
+  emailVerifications EmailVerificationToken[]
+  apiKeys           ApiKey[]
+
+  adminAuditLogs    AdminAuditLog[]     @relation("AdminAuditLogs")
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+// =====================================================
+// USER PROFILE
+// =====================================================
+
+model Profile {
+  id                String          @id @default(cuid())
+
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName         String
+  lastName          String
+
+  gender            Gender?
+
+  birthDate         DateTime?
+
+  avatarUrl         String?
+
+  countryCode       CountryCode?
+
+  countryId         String?
+  cityId            String?
+  districtId        String?
+
+  country           Country?        @relation(fields: [countryId], references: [id])
+  city              City?           @relation(fields: [cityId], references: [id])
+  district          District?       @relation(fields: [districtId], references: [id])
+
+  address           String?
+  bio               String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([countryId])
+  @@index([cityId])
+  @@index([districtId])
+}
+
+// =====================================================
+// USER PREFERENCES
+// =====================================================
+
+model UserPreference {
+  id                  String   @id @default(cuid())
+
+  userId              String   @unique
+
+  language            String   @default("fr")
+  currency            String   @default("XAF")
+  timezone            String   @default("Africa/Brazzaville")
+
+  emailNotifications  Boolean  @default(true)
+  smsNotifications    Boolean  @default(true)
+  pushNotifications   Boolean  @default(true)
+
+  marketingEmails     Boolean  @default(false)
+
+  darkMode            Boolean  @default(true)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// =====================================================
+// REFRESH TOKENS
+// =====================================================
+
+model RefreshToken {
+  id                String          @id @default(cuid())
+
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token             String          @unique
+
+  expiresAt         DateTime
+
+  revoked           Boolean         @default(false)
+
+  createdAt         DateTime        @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// =====================================================
+// USER SESSION
+// =====================================================
+
+model UserSession {
+  id                String   @id @default(cuid())
+
+  userId            String
+
+  refreshTokenHash  String   @unique
+
+  ipAddress         String?
+  userAgent         String?
+
+  deviceName        String?
+  deviceType        String?
+
+  expiresAt         DateTime
+
+  revokedAt         DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("user_sessions")
+}
+
+// =====================================================
+// PASSWORD RESET TOKEN
+// =====================================================
+
+model PasswordResetToken {
+  id          String   @id @default(cuid())
+
+  userId      String
+
+  tokenHash   String   @unique
+
+  expiresAt   DateTime
+
+  usedAt      DateTime?
+
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// =====================================================
+// EMAIL VERIFICATION TOKEN
+// =====================================================
+
+model EmailVerificationToken {
+  id          String   @id @default(cuid())
+
+  userId      String
+
+  tokenHash   String   @unique
+
+  expiresAt   DateTime
+
+  verifiedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// =====================================================
+// API KEY
+// =====================================================
+
+model ApiKey {
+  id          String   @id @default(cuid())
+
+  userId      String
+
+  name        String
+
+  keyPrefix   String
+  keyHash     String   @unique
+
+  lastUsedAt  DateTime?
+
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+
+  permissions Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([keyPrefix])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("api_keys")
+}
+
+// =====================================================
+// COUNTRIES
+// =====================================================
+
+model Country {
+  id                String          @id @default(cuid())
+
+  code              CountryCode     @unique
+
+  name              String
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  cities            City[]
+  profiles          Profile[]
+  salons            Salon[]
+  salonChains       SalonChain[]
+
+  @@index([name])
+}
+
+// =====================================================
+// CITIES
+// =====================================================
+
+model City {
+  id                String          @id @default(cuid())
+
+  countryId         String
+  country           Country         @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  name              String
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  districts         District[]
+  profiles          Profile[]
+  salons            Salon[]
+  salonChains       SalonChain[]
+
+  @@index([countryId])
+  @@index([name])
+}
+
+// =====================================================
+// DISTRICTS
+// =====================================================
+
+model District {
+  id                String          @id @default(cuid())
+
+  cityId            String
+  city              City            @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  name              String
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  profiles          Profile[]
+  salons            Salon[]
+
+  @@index([cityId])
+  @@index([name])
+}
+
+// =====================================================
+// SALON CHAINS
+// =====================================================
+
+model SalonChain {
+  id                String              @id @default(cuid())
+
+  name              String
+  slug              String              @unique
+
+  description       String?
+
+  logoUrl           String?
+
+  ownerId           String
+  owner             User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  countryId         String?
+  cityId            String?
+
+  country           Country?            @relation(fields: [countryId], references: [id])
+  city              City?               @relation(fields: [cityId], references: [id])
+
+  salons            Salon[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([ownerId])
+}
+
+// =====================================================
+// SALONS
+// =====================================================
+
+model Salon {
+  id                String              @id @default(cuid())
+
+  name              String
+  slug              String              @unique
+
+  description       String?
+
+  logoUrl           String?
+  coverImageUrl     String?
+
+  phone             String?
+  email             String?
+
+  status            SalonStatus         @default(PENDING)
+
+  ownerId           String
+  owner             User                @relation("SalonOwner", fields: [ownerId], references: [id])
+
+  chainId           String?
+  chain             SalonChain?         @relation(fields: [chainId], references: [id])
+
+  countryId         String?
+  cityId            String?
+  districtId        String?
+
+  country           Country?            @relation(fields: [countryId], references: [id])
+  city              City?               @relation(fields: [cityId], references: [id])
+  district          District?           @relation(fields: [districtId], references: [id])
+
+  address           String?
+
+  latitude          Float?
+  longitude         Float?
+
+  members           SalonMember[]
+  barbers           Barber[]
+
+  bookings          Booking[]
+
+  reviews           Review[]
+  statistics        SalonStatistic[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([ownerId])
+  @@index([chainId])
+  @@index([status])
+}
+
+// =====================================================
+// SALON MEMBERS
+// =====================================================
+
+model SalonMember {
+  id                String              @id @default(cuid())
+
+  salonId           String
+  userId            String
+
+  salon             Salon               @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role              SalonMemberRole     @default(STAFF)
+
+  createdAt         DateTime            @default(now())
+
+  @@unique([salonId, userId])
+  @@index([salonId])
+  @@index([userId])
+}
+
+// =====================================================
+// BARBERS
+// =====================================================
+
+model Barber {
+  id                String              @id @default(cuid())
+
+  userId            String              @unique
+  salonId           String?
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon             Salon?              @relation(fields: [salonId], references: [id])
+
+  professionalName  String?
+
+  biography         String?
+
+  yearsExperience   Int                 @default(0)
+
+  isAvailable       Boolean             @default(true)
+
+  averageRating     Float               @default(0)
+
+  totalReviews      Int                 @default(0)
+
+  bookings          Booking[]
+
+  hairstyles        Hairstyle[]
+
+  portfolio         BarberPortfolio[]
+
+  reviews           Review[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([salonId])
+}
+
+// =====================================================
+// BARBER PORTFOLIO
+// =====================================================
+
+model BarberPortfolio {
+  id                String              @id @default(cuid())
+
+  barberId          String
+  barber            Barber              @relation(fields: [barberId], references: [id], onDelete: Cascade)
+
+  title             String
+
+  description       String?
+
+  imageUrl          String
+
+  mediaType         MediaType           @default(IMAGE)
+
+  createdAt         DateTime            @default(now())
+
+  @@index([barberId])
+}
+
+// =====================================================
+// SUBSCRIPTION PLANS
+// =====================================================
+
+model SubscriptionPlan {
+  id                    String                @id @default(cuid())
+
+  name                  String
+  slug                  String                @unique
+
+  type                  SubscriptionType
+
+  description           String?
+
+  price                 Decimal               @db.Decimal(12,2)
+  currency              Currency              @default(XAF)
+
+  durationDays          Int
+
+  maxBookings           Int?
+  maxBarbers            Int?
+  maxSalons             Int?
+
+  aiRecommendations     Boolean               @default(true)
+
+  isPopular             Boolean               @default(false)
+  isActive              Boolean               @default(true)
+
+  subscriptions         Subscription[]
+  features              PlanFeature[]
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
+
+// =====================================================
+// PLAN FEATURES
+// =====================================================
+
+model PlanFeature {
+  id                    String                @id @default(cuid())
+
+  planId                String
+  plan                  SubscriptionPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  key                   String
+  value                 String?
+
+  createdAt             DateTime              @default(now())
+
+  @@index([planId])
+  @@unique([planId, key])
+}
+
+// =====================================================
+// SUBSCRIPTIONS
+// =====================================================
+
+model Subscription {
+  id                    String                @id @default(cuid())
+
+  userId                String
+  planId                String
+
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                  SubscriptionPlan      @relation(fields: [planId], references: [id])
+
+  status                SubscriptionStatus    @default(PENDING)
+
+  startDate             DateTime
+  endDate               DateTime
+
+  autoRenew             Boolean               @default(false)
+
+  lastRenewedAt         DateTime?
+  cancelledAt           DateTime?
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  payments              Payment[]
+  invoices              Invoice[]
+  history               SubscriptionHistory[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+// =====================================================
+// SUBSCRIPTION HISTORY
+// =====================================================
+
+model SubscriptionHistory {
+  id                    String                @id @default(cuid())
+
+  subscriptionId        String
+  subscription          Subscription          @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  oldStatus             SubscriptionStatus?
+  newStatus             SubscriptionStatus
+
+  reason                String?
+
+  createdAt             DateTime              @default(now())
+
+  @@index([subscriptionId])
+}
+
+// =====================================================
+// BOOKINGS
+// =====================================================
+
+model Booking {
+  id                String          @id @default(cuid())
+
+  clientId          String
+  client            User            @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+
+  barberId          String?
+  barber            Barber?         @relation(fields: [barberId], references: [id])
+
+  salonId           String?
+  salon             Salon?          @relation(fields: [salonId], references: [id])
+
+  type              BookingType     @default(CLIENT_VISIT)
+  status            BookingStatus   @default(PENDING)
+
+  scheduledAt       DateTime
+  duration          Int             @default(60)
+
+  price             Decimal?        @db.Decimal(12, 2)
+  currency          Currency        @default(XAF)
+
+  notes             String?
+
+  cancelledAt       DateTime?
+  cancelReason      String?
+  completedAt       DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  invoices          Invoice[]
+
+  @@index([clientId])
+  @@index([barberId])
+  @@index([salonId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// =====================================================
+// PAYMENTS
+// =====================================================
+
+model Payment {
+  id                    String             @id @default(cuid())
+
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  subscriptionId        String?
+  subscription          Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  invoiceId             String?
+  invoice               Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  amount                Int
+  currency              Currency           @default(XAF)
+
+  provider              PaymentProvider
+  paymentMethod         PaymentMethod
+
+  environment           PaymentEnvironment @default(TEST)
+
+  transactionReference  String             @unique
+
+  providerTransactionId String?            @unique
+
+  providerPaymentId     String?
+  providerCustomerId    String?
+  providerCheckoutId    String?
+
+  status                PaymentStatus      @default(PENDING)
+
+  providerStatus        String?
+
+  description           String?
+  phone                 String?
+  country               String?
+  failureCode           String?
+  failureMessage        String?
+
+  idempotencyKey        String             @unique
+
+  webhookReceivedAt     DateTime?
+  webhookProcessedAt    DateTime?
+  webhookEventId        String?            @unique
+
+  confirmedAt           DateTime?
+
+  refundedAt            DateTime?
+  refundReference       String?
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  events                PaymentEvent[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([provider])
+  @@index([paymentMethod])
+  @@index([createdAt])
+  @@index([providerTransactionId])
+  @@index([transactionReference])
+}
+
+// =====================================================
+// PAYMENT EVENTS
+// =====================================================
+
+model PaymentEvent {
+  id                    String            @id @default(cuid())
+
+  paymentId             String
+  payment               Payment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  type                  PaymentEventType
+
+  provider              PaymentProvider
+
+  providerEventId       String?
+
+  statusBefore          PaymentStatus?
+  statusAfter           PaymentStatus?
+
+  amount                Int?
+  currency              Currency?
+
+  payload               Json?
+
+  signatureVerified     Boolean           @default(false)
+
+  processed             Boolean           @default(false)
+
+  processedAt           DateTime?
+
+  errorCode             String?
+  errorMessage          String?
+
+  createdAt             DateTime          @default(now())
+
+  @@index([paymentId])
+  @@index([provider])
+  @@index([type])
+  @@index([createdAt])
+  @@index([providerEventId])
+}
+
+// =====================================================
+// PAYMENT WEBHOOK
+// =====================================================
+
+model PaymentWebhook {
+  id                String   @id @default(cuid())
+
+  provider          PaymentProvider
+  eventType         String
+
+  externalEventId   String?  @unique
+  transactionId     String?
+
+  payload           Json
+  headers           Json?
+
+  signature         String?
+
+  status            WebhookStatus @default(RECEIVED)
+
+  processedAt       DateTime?
+  failedAt          DateTime?
+
+  errorMessage      String?
+
+  attempts          Int      @default(0)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([provider])
+  @@index([eventType])
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_webhooks")
+}
+
+// =====================================================
+// INVOICES
+// =====================================================
+
+model Invoice {
+  id                String        @id @default(cuid())
+
+  invoiceNumber     String        @unique
+
+  userId            String
+
+  subscriptionId    String?
+  bookingId         String?
+
+  subtotal          Decimal       @db.Decimal(12, 2)
+  discountAmount    Decimal       @default(0) @db.Decimal(12, 2)
+  taxAmount         Decimal       @default(0) @db.Decimal(12, 2)
+  totalAmount       Decimal       @db.Decimal(12, 2)
+
+  currency          String        @default("XAF")
+
+  status            InvoiceStatus @default(DRAFT)
+
+  issueDate         DateTime      @default(now())
+  dueDate           DateTime?
+
+  paidAt            DateTime?
+
+  pdfUrl            String?
+
+  billingName       String?
+  billingEmail      String?
+  billingPhone      String?
+  billingAddress    String?
+
+  notes             String?
+
+  metadata          Json?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription      Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  booking           Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  items             InvoiceItem[]
+  payments          Payment[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([issueDate])
+  @@map("invoices")
+}
+
+// =====================================================
+// INVOICE ITEMS
+// =====================================================
+
+model InvoiceItem {
+  id                String   @id @default(cuid())
+
+  invoiceId         String
+
+  description       String
+
+  quantity          Int      @default(1)
+
+  unitPrice         Decimal  @db.Decimal(12, 2)
+  totalPrice        Decimal  @db.Decimal(12, 2)
+
+  metadata          Json?
+
+  createdAt         DateTime @default(now())
+
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// =====================================================
+// HAIRSTYLES
+// =====================================================
+
+model Hairstyle {
+  id                  String   @id @default(cuid())
+
+  name                String
+
+  slug                String   @unique
+
+  description         String?
+
+  imageUrl            String?
+  thumbnailUrl        String?
+
+  category            HairstyleCategory
+
+  gender              HairstyleGender @default(UNISEX)
+
+  suitableFaceShapes  FaceShape[]
+
+  suitableHairTextures HairTexture[]
+
+  suitableHairLengths HairLength[]
+
+  suitableHairDensities HairDensity[]
+
+  difficulty          HairstyleDifficulty @default(MEDIUM)
+
+  estimatedDuration   Int?
+
+  minPrice            Decimal? @db.Decimal(10, 2)
+  maxPrice            Decimal? @db.Decimal(10, 2)
+
+  popularityScore     Decimal @default(0) @db.Decimal(8, 2)
+
+  viewCount           Int @default(0)
+  recommendationCount Int @default(0)
+
+  isActive            Boolean @default(true)
+  isPremium           Boolean @default(false)
+
+  aiDescription       String?
+
+  metadata            Json?
+
+  barberId            String?
+  barber              Barber?  @relation(fields: [barberId], references: [id])
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  recommendations     Recommendation[]
+
+  favorites           FavoriteHairstyle[]
+
+  reviews             Review[]
+
+  @@index([category])
+  @@index([gender])
+  @@index([difficulty])
+  @@index([isActive])
+  @@index([isPremium])
+  @@index([popularityScore])
+  @@map("hairstyles")
+}
+
+// =====================================================
+// FACE ANALYSIS
+// =====================================================
+
+model FaceAnalysis {
+  id                String   @id @default(cuid())
+
+  userId            String
+
+  imageUrl          String?
+  imageStoragePath  String?
+
+  faceDetected      Boolean  @default(false)
+  confidenceScore   Decimal? @db.Decimal(5, 2)
+
+  faceShape         FaceShape?
+
+  foreheadWidth     Decimal? @db.Decimal(6, 2)
+  cheekboneWidth    Decimal? @db.Decimal(6, 2)
+  jawlineWidth      Decimal? @db.Decimal(6, 2)
+  faceLength        Decimal? @db.Decimal(6, 2)
+
+  skinTone          String?
+  hairTexture       HairTexture?
+  hairDensity       HairDensity?
+  hairLength        HairLength?
+
+  aiProvider        AIProvider?
+  aiModel           String?
+  rawResult         Json?
+
+  status            FaceAnalysisStatus @default(PENDING)
+
+  errorMessage      String?
+
+  analyzedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  recommendations   Recommendation[]
+
+  @@index([userId])
+  @@index([faceShape])
+  @@index([status])
+  @@index([createdAt])
+  @@map("face_analyses")
+}
+
+// =====================================================
+// RECOMMENDATIONS
+// =====================================================
+
+model Recommendation {
+  id                String   @id @default(cuid())
+
+  userId            String
+
+  faceAnalysisId    String
+
+  hairstyleId       String
+
+  compatibilityScore Decimal @db.Decimal(5, 2)
+
+  faceShapeScore    Decimal? @db.Decimal(5, 2)
+  hairTextureScore  Decimal? @db.Decimal(5, 2)
+  hairLengthScore   Decimal? @db.Decimal(5, 2)
+  hairDensityScore  Decimal? @db.Decimal(5, 2)
+
+  rank              Int?
+
+  explanation       String?
+
+  strengths         Json?
+  considerations    Json?
+
+  aiProvider        AIProvider?
+  aiModel           String?
+
+  isFavorite        Boolean @default(false)
+
+  viewedAt          DateTime?
+  clickedAt         DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faceAnalysis      FaceAnalysis  @relation(fields: [faceAnalysisId], references: [id], onDelete: Cascade)
+  hairstyle         Hairstyle     @relation(fields: [hairstyleId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([faceAnalysisId])
+  @@index([hairstyleId])
+  @@index([compatibilityScore])
+  @@index([rank])
+  @@index([createdAt])
+
+  @@unique([faceAnalysisId, hairstyleId])
+
+  @@map("recommendations")
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+model Notification {
+  id                String              @id @default(cuid())
+
+  userId            String
+
+  type              NotificationType
+  channel           NotificationChannel
+
+  title             String
+  message           String
+
+  data              Json?
+
+  isRead            Boolean             @default(false)
+  readAt            DateTime?
+
+  status            NotificationStatus  @default(PENDING)
+
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+
+  scheduledFor      DateTime?
+
+  errorMessage      String?
+
+  attempts          Int                 @default(0)
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([channel])
+  @@index([status])
+  @@index([isRead])
+  @@index([scheduledFor])
+  @@index([createdAt])
+
+  @@map("notifications")
+}
+
+// =====================================================
+// NOTIFICATION TEMPLATE
+// =====================================================
+
+model NotificationTemplate {
+  id                String              @id @default(cuid())
+
+  code              String              @unique
+
+  name              String
+
+  description       String?
+
+  type              NotificationType
+
+  channel           NotificationChannel
+
+  subject           String?
+
+  content           String
+
+  variables         Json?
+
+  isActive          Boolean             @default(true)
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+
+  @@map("notification_templates")
+}
+
+// =====================================================
+// AUDIT LOG
+// =====================================================
+
+model AuditLog {
+  id                String       @id @default(cuid())
+
+  userId            String?
+
+  action            AuditAction
+
+  entityType        String
+  entityId          String?
+
+  description       String?
+
+  oldValues         Json?
+  newValues         Json?
+
+  ipAddress         String?
+  userAgent         String?
+
+  requestId         String?
+
+  success           Boolean      @default(true)
+
+  errorMessage      String?
+
+  createdAt         DateTime     @default(now())
+
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([requestId])
+  @@index([success])
+  @@index([createdAt])
+
+  @@map("audit_logs")
+}
+
+// =====================================================
+// ADMIN AUDIT LOG
+// =====================================================
+
+model AdminAuditLog {
+  id                String   @id @default(cuid())
+
+  adminId           String?
+
+  action            AuditAction
+
+  entityType        String
+  entityId          String?
+
+  description       String?
+
+  oldValues         Json?
+  newValues         Json?
+
+  ipAddress         String?
+  userAgent         String?
+
+  requestId         String?
+
+  createdAt         DateTime @default(now())
+
+  admin             User?    @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+
+  @@map("admin_audit_logs")
+}
+
+// =====================================================
+// REVIEWS
+// =====================================================
+
+model Review {
+  id          String   @id @default(cuid())
+
+  userId      String
+
+  salonId     String?
+  barberId    String?
+  hairstyleId String?
+
+  rating      Int
+
+  title       String?
+  comment     String?
+
+  isPublished Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon       Salon?     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  barber      Barber?    @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  hairstyle   Hairstyle? @relation(fields: [hairstyleId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([salonId])
+  @@index([barberId])
+  @@index([hairstyleId])
+  @@index([rating])
+  @@index([isPublished])
+  @@map("reviews")
+}
+
+// =====================================================
+// FAVORITE HAIRSTYLE
+// =====================================================
+
+model FavoriteHairstyle {
+  id          String   @id @default(cuid())
+
+  userId      String
+  hairstyleId String
+
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hairstyle   Hairstyle @relation(fields: [hairstyleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hairstyleId])
+  @@index([userId])
+  @@index([hairstyleId])
+  @@map("favorite_hairstyles")
+}
+
+// =====================================================
+// COUPONS
+// =====================================================
+
+model Coupon {
+  id              String   @id @default(cuid())
+
+  code            String   @unique
+  name            String
+
+  description     String?
+
+  discountType    DiscountType
+  discountValue   Decimal  @db.Decimal(12, 2)
+
+  minimumAmount   Decimal? @db.Decimal(12, 2)
+  maximumDiscount Decimal? @db.Decimal(12, 2)
+
+  usageLimit      Int?
+  usageCount      Int      @default(0)
+
+  userLimit       Int?
+
+  startsAt        DateTime
+  expiresAt       DateTime
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  usages          CouponUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([startsAt])
+  @@index([expiresAt])
+  @@map("coupons")
+}
+
+// =====================================================
+// COUPON USAGE
+// =====================================================
+
+model CouponUsage {
+  id          String   @id @default(cuid())
+
+  couponId    String
+  userId      String
+
+  paymentId   String?
+
+  discountAmount Decimal @db.Decimal(12, 2)
+
+  usedAt      DateTime @default(now())
+
+  coupon      Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([paymentId])
+  @@map("coupon_usages")
+}
+
+// =====================================================
+// SYSTEM SETTINGS
+// =====================================================
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+
+  key         String   @unique
+  value       String
+
+  type        SettingType @default(STRING)
+
+  description String?
+
+  isPublic    Boolean  @default(false)
+  isEditable  Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([isPublic])
+  @@map("system_settings")
+}
+
+// =====================================================
+// STATISTICS
+// =====================================================
+
+model DailyStatistic {
+  id              String   @id @default(cuid())
+
+  date            DateTime
+
+  totalUsers      Int      @default(0)
+  newUsers        Int      @default(0)
+
+  activeUsers     Int      @default(0)
+
+  totalBookings   Int      @default(0)
+  completedBookings Int    @default(0)
+  cancelledBookings Int    @default(0)
+
+  totalPayments   Int      @default(0)
+
+  revenue         Decimal  @default(0) @db.Decimal(14, 2)
+
+  subscriptions   Int      @default(0)
+  activeSubscriptions Int  @default(0)
+
+  faceAnalyses    Int      @default(0)
+  recommendations Int     @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+  @@map("daily_statistics")
+}
+
+model SalonStatistic {
+  id                String   @id @default(cuid())
+
+  salonId           String
+  date              DateTime
+
+  totalBookings     Int      @default(0)
+  completedBookings Int      @default(0)
+  cancelledBookings Int      @default(0)
+
+  totalCustomers    Int      @default(0)
+  newCustomers      Int      @default(0)
+
+  revenue           Decimal  @default(0) @db.Decimal(14, 2)
+
+  averageRating     Decimal  @default(0) @db.Decimal(3, 2)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  salon             Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, date])
+  @@index([salonId])
+  @@index([date])
+  @@map("salon_statistics")
+}
+
+model SubscriptionStatistic {
+  id                  String   @id @default(cuid())
+
+  date                DateTime
+
+  totalSubscriptions  Int      @default(0)
+
+  newSubscriptions    Int      @default(0)
+  activeSubscriptions Int      @default(0)
+
+  cancelledSubscriptions Int   @default(0)
+  expiredSubscriptions   Int   @default(0)
+
+  revenue             Decimal  @default(0) @db.Decimal(14, 2)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+  @@map("subscription_statistics")
+}
