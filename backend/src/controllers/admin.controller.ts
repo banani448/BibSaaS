@@ -83,14 +83,14 @@ class AdminController {
    */
   async getSalons(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, city, country, isActive, search } = req.query;
+      const { page = 1, limit = 20, cityId, countryId, status, search } = req.query;
 
       const result = await salonService.listSalons({
         page: Number(page),
         limit: Number(limit),
-        city: city as string,
-        country: country as string,
-        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        cityId: cityId as string,
+        countryId: countryId as string,
+        status: status as string,
         search: search as string,
       });
 
@@ -159,7 +159,7 @@ class AdminController {
         prisma.user.count({ where: { status: 'ACTIVE' } }),
         prisma.barber.count(),
         prisma.salon.count(),
-        prisma.salon.count({ where: { isActive: true } }),
+        prisma.salon.count({ where: { status: 'ACTIVE' } }),
         prisma.booking.count(),
         prisma.subscription.count({ where: { status: 'ACTIVE', endDate: { gte: new Date() } } }),
       ]);

@@ -13,13 +13,13 @@ export interface RefreshTokenPayload {
 }
 
 const accessSignOptions: SignOptions = {
-  expiresIn: config.JWT_EXPIRES_IN as `${number}${string}` | number,
+  expiresIn: config.JWT_EXPIRES_IN as SignOptions['expiresIn'],
   issuer: config.JWT_ISSUER,
   audience: config.JWT_AUDIENCE,
 };
 
 const refreshSignOptions: SignOptions = {
-  expiresIn: config.JWT_REFRESH_EXPIRES_IN as `${number}${string}` | number,
+  expiresIn: config.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
   issuer: config.JWT_ISSUER,
 };
 
@@ -71,6 +71,6 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
 /**
  * Decode token without verification (for debugging)
  */
-export function decodeToken(token: string): any {
+export function decodeToken(token: string): ReturnType<typeof jwt.decode> {
   return jwt.decode(token);
 }

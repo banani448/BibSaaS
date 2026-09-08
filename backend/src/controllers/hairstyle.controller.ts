@@ -8,7 +8,7 @@ class HairstyleController {
    */
   async createHairstyle(req: Request, res: Response, next: NextFunction) {
     try {
-      const { name, description, imageUrl, category, tags, suitableFaceShapes, hairTypes, forMen, forWomen } = req.body;
+      const { name, description, imageUrl, category, gender, suitableFaceShapes, hairTypes, difficulty } = req.body;
 
       if (!name) {
         return res.status(400).json({
@@ -23,11 +23,10 @@ class HairstyleController {
         description,
         imageUrl,
         category,
-        tags,
+        gender,
         suitableFaceShapes,
         hairTypes,
-        forMen,
-        forWomen,
+        difficulty,
       });
 
       return res.status(201).json({
@@ -46,14 +45,13 @@ class HairstyleController {
    */
   async listHairstyles(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, category, forMen, forWomen, hairType, faceShape, search } = req.query;
+      const { page = 1, limit = 20, category, gender, hairType, faceShape, search } = req.query;
 
       const result = await hairstyleService.listHairstyles({
         page: Number(page),
         limit: Number(limit),
         category: category as string,
-        forMen: forMen === 'true' ? true : forMen === 'false' ? false : undefined,
-        forWomen: forWomen === 'true' ? true : forWomen === 'false' ? false : undefined,
+        gender: gender as string,
         hairType: hairType as string,
         faceShape: faceShape as string,
         search: search as string,
@@ -94,18 +92,17 @@ class HairstyleController {
   async updateHairstyle(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { name, description, imageUrl, category, tags, suitableFaceShapes, hairTypes, forMen, forWomen } = req.body;
+      const { name, description, imageUrl, category, gender, suitableFaceShapes, hairTypes, difficulty } = req.body;
 
       const updatedHairstyle = await hairstyleService.updateHairstyle(id, {
         name,
         description,
         imageUrl,
         category,
-        tags,
+        gender,
         suitableFaceShapes,
         hairTypes,
-        forMen,
-        forWomen,
+        difficulty,
       });
 
       return res.json({

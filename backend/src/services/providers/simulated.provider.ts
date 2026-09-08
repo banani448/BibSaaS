@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
+import { Payment } from '@prisma/client';
 
 interface InitiatePaymentParams {
-  payment: any;
+  payment: Payment;
 }
 
 interface WebhookParams {
@@ -38,10 +39,10 @@ class SimulatedProvider {
     };
   }
 
-  async verifyPayment(payment: any): Promise<PaymentResult> {
+  async verifyPayment(payment: Payment): Promise<PaymentResult> {
     return {
       status: payment.status,
-      providerStatus: payment.providerStatus,
+      providerStatus: payment.providerStatus ?? undefined,
     };
   }
 
@@ -58,10 +59,10 @@ class SimulatedProvider {
     };
   }
 
-  async simulate({ payment, success }: { payment: any; success: boolean }): Promise<WebhookResult> {
+  async simulate({ payment, success }: { payment: Payment; success: boolean }): Promise<WebhookResult> {
     return {
       status: success ? 'SUCCESS' : 'FAILED',
-      providerTransactionId: payment.providerTransactionId,
+      providerTransactionId: payment.providerTransactionId ?? undefined,
       providerStatus: success ? 'SIMULATED_SUCCESS' : 'SIMULATED_FAILED',
       payload: {
         simulated: true,

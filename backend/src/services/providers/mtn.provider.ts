@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { Payment } from '@prisma/client';
 import config from '../../config/env';
 
 interface InitiatePaymentParams {
-  payment: any;
+  payment: Payment;
   amount: number;
   phone: string;
   currency: string;
@@ -41,7 +42,7 @@ class MtnProvider {
   private apiSecret: string;
 
   constructor() {
-    this.enabled = config.MTN_ENABLED !== 'false';
+    this.enabled = config.MTN_ENABLED;
     this.baseUrl = config.MTN_BASE_URL;
     this.apiKey = config.MTN_API_KEY;
     this.apiSecret = config.MTN_API_SECRET;
@@ -102,7 +103,7 @@ class MtnProvider {
     };
   }
 
-  async verifyPayment(payment: any): Promise<PaymentResult> {
+  async verifyPayment(payment: Payment): Promise<PaymentResult> {
     this.ensureConfigured();
 
     const response = await axios.get(
@@ -131,7 +132,7 @@ class MtnProvider {
     return {
       status: normalized,
       providerStatus: status,
-      providerTransactionId: payment.providerTransactionId,
+      providerTransactionId: payment.providerTransactionId ?? undefined,
     };
   }
 

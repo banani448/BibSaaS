@@ -18,12 +18,12 @@ class BookingController {
         });
       }
 
-      const { barberId, salonId, scheduledDate, duration, services, notes } = req.body;
+      const { barberId, salonId, scheduledDate, duration, price, notes } = req.body;
 
-      if (!barberId || !salonId || !scheduledDate || !duration || !services) {
+      if (!barberId || !salonId || !scheduledDate || !duration) {
         return res.status(400).json({
           success: false,
-          message: 'barberId, salonId, scheduledDate, duration, and services are required',
+          message: 'barberId, salonId, scheduledDate, and duration are required',
           code: 'MISSING_FIELDS',
         });
       }
@@ -34,7 +34,7 @@ class BookingController {
         salonId,
         scheduledDate: new Date(scheduledDate),
         duration,
-        services,
+        price,
         notes,
       });
 
@@ -108,12 +108,12 @@ class BookingController {
     try {
       const { id } = req.params;
 
-      const { scheduledDate, duration, services, notes, status } = req.body;
+      const { scheduledDate, duration, price, notes, status } = req.body;
 
       const updatedBooking = await bookingService.updateBooking(id, {
         scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
         duration,
-        services,
+        price,
         notes,
         status,
       });
@@ -204,12 +204,12 @@ class BookingController {
    */
   async listBookings(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, userId, barberId, salonId, status, fromDate, toDate } = req.query;
+      const { page = 1, limit = 20, clientId, barberId, salonId, status, fromDate, toDate } = req.query;
 
       const result = await bookingService.listBookings({
         page: Number(page),
         limit: Number(limit),
-        userId: userId as string,
+        clientId: clientId as string,
         barberId: barberId as string,
         salonId: salonId as string,
         status: status as string,

@@ -25,8 +25,7 @@ export const getPlans = async (req: Request, res: Response, next: NextFunction) 
 export const getPlanBySlug = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slug } = req.params;
-    const currency = req.query.currency as string;
-    const plan = await subscriptionService.getPlanBySlug(slug, currency);
+    const plan = await subscriptionService.getPlanBySlug(slug);
 
     res.json({
       success: true,
@@ -87,7 +86,7 @@ export const getUserSubscriptions = async (req: Request, res: Response, next: Ne
 export const createSubscription = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.userId;
-    const { planId, currency } = req.body;
+    const { planId } = req.body;
 
     if (!userId) {
       throw new AppError('User not authenticated', 401, 'NOT_AUTHENTICATED');
@@ -97,7 +96,7 @@ export const createSubscription = async (req: Request, res: Response, next: Next
       throw new AppError('Plan ID is required', 400, 'PLAN_ID_REQUIRED');
     }
 
-    const result = await subscriptionService.createSubscription(userId, planId, currency);
+    const result = await subscriptionService.createSubscription(userId, planId);
 
     res.status(201).json({
       success: true,

@@ -325,6 +325,61 @@ class SalonService {
 
     return updatedSalon;
   }
+
+  /**
+   * Attach a barber to a salon
+   */
+  async addBarberToSalon(salonId: string, barberId: string) {
+    const salon = await prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { id: true },
+    });
+
+    if (!salon) {
+      throw new AppError('Salon not found', 404, 'SALON_NOT_FOUND');
+    }
+
+    const barber = await prisma.barber.findUnique({
+      where: { id: barberId },
+      select: { id: true, salonId: true },
+    });
+
+    if (!barber) {
+      throw new AppError('Barber not found', 404, 'BARBER_NOT_FOUND');
+    }
+
+    if (barber.salonId === salonId) {
+      throw new AppError('Barber already belongs to this salon', 400, 'BARBER_ALREADY_IN_SALON');
+    }
+
+    return prisma.barber.update({
+      where: { id: barberId },
+      data: { salonId },
+    });
+  }
+
+  /**
+   * Detach a barber from a salon
+   */
+  async removeBarberFromSalon(salonId: string, barberId: string) {
+    const barber = await prisma.barber.findUnique({
+      where: { id: barberId },
+      select: { id: true, salonId: true },
+    });
+
+    if (!barber) {
+      throw new AppError('Barber not found', 404, 'BARBER_NOT_FOUND');
+    }
+
+    if (barber.salonId !== salonId) {
+      throw new AppError('Barber does not belong to this salon', 400, 'BARBER_NOT_IN_SALON');
+    }
+
+    return prisma.barber.update({
+      where: { id: barberId },
+      data: { salonId: null },
+    });
+  }
 }
 
 export default new SalonService();

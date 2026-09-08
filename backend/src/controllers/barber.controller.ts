@@ -18,12 +18,12 @@ class BarberController {
         });
       }
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar } = req.body;
+      const { salonId, professionalName, biography, yearsExperience } = req.body;
 
-      if (!firstName || !lastName || !phone) {
+      if (!professionalName) {
         return res.status(400).json({
           success: false,
-          message: 'firstName, lastName, and phone are required',
+          message: 'professionalName is required',
           code: 'MISSING_FIELDS',
         });
       }
@@ -31,14 +31,9 @@ class BarberController {
       const barber = await barberService.createBarber({
         userId,
         salonId,
-        firstName,
-        lastName,
-        phone,
-        specializations,
-        bio,
-        experience,
-        workingHours,
-        avatar,
+        professionalName,
+        biography,
+        yearsExperience,
       });
 
       return res.status(201).json({
@@ -115,18 +110,13 @@ class BarberController {
 
       const barber = await barberService.getBarberByUserId(userId);
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar, isAvailable } = req.body;
+      const { salonId, professionalName, biography, yearsExperience, isAvailable } = req.body;
 
       const updatedBarber = await barberService.updateBarber(barber.id, {
         salonId,
-        firstName,
-        lastName,
-        phone,
-        specializations,
-        bio,
-        experience,
-        workingHours,
-        avatar,
+        professionalName,
+        biography,
+        yearsExperience,
         isAvailable,
       });
 
@@ -148,18 +138,13 @@ class BarberController {
     try {
       const { id } = req.params;
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar, isAvailable } = req.body;
+      const { salonId, professionalName, biography, yearsExperience, isAvailable } = req.body;
 
       const updatedBarber = await barberService.updateBarber(id, {
         salonId,
-        firstName,
-        lastName,
-        phone,
-        specializations,
-        bio,
-        experience,
-        workingHours,
-        avatar,
+        professionalName,
+        biography,
+        yearsExperience,
         isAvailable,
       });
 

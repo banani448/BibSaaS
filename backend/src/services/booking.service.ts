@@ -1,5 +1,6 @@
 import prisma from '../config/prisma';
 import AppError from '../utils/errors/app-error';
+import { BookingStatus } from '@prisma/client';
 
 interface CreateBookingParams {
   userId: string;
@@ -99,7 +100,7 @@ class BookingService {
         salonId,
         scheduledAt: bookingStart,
         duration,
-        price: price ? BigInt(price) : null,
+        price: price ?? null,
         notes,
         status: 'PENDING',
       },
@@ -215,8 +216,8 @@ class BookingService {
         ...(scheduledDate && { scheduledAt: new Date(scheduledDate) }),
         ...(duration && { duration }),
         ...(notes !== undefined && { notes }),
-        ...(status && { status: status as any }),
-        ...(price !== undefined && { price: BigInt(price) }),
+        ...(status && { status: status as BookingStatus }),
+        ...(price !== undefined && { price }),
       },
       include: {
         barber: {

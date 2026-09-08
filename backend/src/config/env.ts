@@ -56,6 +56,7 @@ interface Config {
   MTN_BASE_URL: string;
   MTN_API_KEY: string;
   MTN_API_SECRET: string;
+  MTN_ENVIRONMENT: string;
 
   // Airtel
   AIRTEL_ENABLED: boolean;
@@ -135,6 +136,7 @@ const config: Config = {
   MTN_BASE_URL: process.env.MTN_BASE_URL || '',
   MTN_API_KEY: process.env.MTN_API_KEY || '',
   MTN_API_SECRET: process.env.MTN_API_SECRET || '',
+  MTN_ENVIRONMENT: process.env.MTN_ENVIRONMENT || 'sandbox',
 
   // Airtel
   AIRTEL_ENABLED: process.env.AIRTEL_ENABLED === 'true',

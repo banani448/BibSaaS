@@ -1,12 +1,13 @@
 import prisma from '../config/prisma';
 import AppError from '../utils/errors/app-error';
-import { NotificationType } from '@prisma/client';
+import { NotificationChannel, NotificationType } from '@prisma/client';
 
 interface CreateNotificationParams {
   userId: string;
   type: string;
   title: string;
   message: string;
+  channel?: NotificationChannel;
   data?: Record<string, any>;
 }
 
@@ -15,7 +16,7 @@ class NotificationService {
    * Create a new notification
    */
   async createNotification(params: CreateNotificationParams) {
-    const { userId, type, title, message, data } = params;
+    const { userId, type, title, message, channel, data } = params;
 
     // Verify user exists
     const user = await prisma.user.findUnique({
@@ -31,6 +32,7 @@ class NotificationService {
       data: {
         userId,
         type: type as NotificationType,
+        channel: channel ?? NotificationChannel.IN_APP,
         title,
         message,
         data: data || {},

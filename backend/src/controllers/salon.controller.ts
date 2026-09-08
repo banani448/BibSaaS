@@ -18,12 +18,12 @@ class SalonController {
         });
       }
 
-      const { name, address, city, country, phone, email, description, logo, images, workingHours, amenities, latitude, longitude } = req.body;
+      const { name, address, cityId, countryId, districtId, phone, email, description, latitude, longitude } = req.body;
 
-      if (!name || !address || !city || !country || !phone) {
+      if (!name || !address || !cityId || !countryId || !phone) {
         return res.status(400).json({
           success: false,
-          message: 'name, address, city, country, and phone are required',
+          message: 'name, address, cityId, countryId, and phone are required',
           code: 'MISSING_FIELDS',
         });
       }
@@ -32,15 +32,12 @@ class SalonController {
         userId,
         name,
         address,
-        city,
-        country,
+        cityId,
+        countryId,
+        districtId,
         phone,
         email,
         description,
-        logo,
-        images,
-        workingHours,
-        amenities,
         latitude,
         longitude,
       });
@@ -119,23 +116,20 @@ class SalonController {
 
       const salon = await salonService.getSalonByUserId(userId);
 
-      const { name, address, city, country, phone, email, description, logo, images, workingHours, amenities, latitude, longitude, isActive } = req.body;
+      const { name, address, cityId, countryId, districtId, phone, email, description, latitude, longitude, status } = req.body;
 
       const updatedSalon = await salonService.updateSalon(salon.id, {
         name,
         address,
-        city,
-        country,
+        cityId,
+        countryId,
+        districtId,
         phone,
         email,
         description,
-        logo,
-        images,
-        workingHours,
-        amenities,
         latitude,
         longitude,
-        isActive,
+        status,
       });
 
       return res.json({
@@ -156,23 +150,20 @@ class SalonController {
     try {
       const { id } = req.params;
 
-      const { name, address, city, country, phone, email, description, logo, images, workingHours, amenities, latitude, longitude, isActive } = req.body;
+      const { name, address, cityId, countryId, districtId, phone, email, description, latitude, longitude, status } = req.body;
 
       const updatedSalon = await salonService.updateSalon(id, {
         name,
         address,
-        city,
-        country,
+        cityId,
+        countryId,
+        districtId,
         phone,
         email,
         description,
-        logo,
-        images,
-        workingHours,
-        amenities,
         latitude,
         longitude,
-        isActive,
+        status,
       });
 
       return res.json({
@@ -239,14 +230,14 @@ class SalonController {
    */
   async listSalons(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, city, country, isActive, search } = req.query;
+      const { page = 1, limit = 20, cityId, countryId, status, search } = req.query;
 
       const result = await salonService.listSalons({
         page: Number(page),
         limit: Number(limit),
-        city: city as string,
-        country: country as string,
-        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        cityId: cityId as string,
+        countryId: countryId as string,
+        status: status as string,
         search: search as string,
       });
 

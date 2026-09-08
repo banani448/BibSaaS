@@ -1,8 +1,9 @@
 import Stripe from 'stripe';
+import { Payment } from '@prisma/client';
 import config from '../../config/env';
 
 interface InitiatePaymentParams {
-  payment: any;
+  payment: Payment;
   amount: number;
   currency: string;
   idempotencyKey: string;
@@ -40,7 +41,7 @@ class StripeProvider {
   private stripe: Stripe | null;
 
   constructor() {
-    this.enabled = config.STRIPE_ENABLED === 'true';
+    this.enabled = config.STRIPE_ENABLED;
 
     this.stripe =
       this.enabled && config.STRIPE_SECRET_KEY
@@ -93,11 +94,11 @@ class StripeProvider {
       providerPaymentId: intent.id,
       providerTransactionId: intent.id,
       providerStatus: intent.status,
-      clientSecret: intent.client_secret,
+      clientSecret: intent.client_secret ?? undefined,
     };
   }
 
-  async verifyPayment(payment: any): Promise<PaymentResult> {
+  async verifyPayment(payment: Payment): Promise<PaymentResult> {
     this.ensureConfigured();
 
     if (!payment.providerPaymentId) {
@@ -142,9 +143,9 @@ class StripeProvider {
       config.STRIPE_WEBHOOK_SECRET
     );
 
-    const object = event.data.object;
-
     if (event.type === 'payment_intent.succeeded') {
+      const object = event.data.object;
+
       return {
         providerTransactionId: object.id,
         providerEventId: event.id,
@@ -159,6 +160,8 @@ class StripeProvider {
     }
 
     if (event.type === 'payment_intent.payment_failed') {
+      const object = event.data.object;
+
       return {
         providerTransactionId: object.id,
         providerEventId: event.id,
@@ -173,6 +176,8 @@ class StripeProvider {
     }
 
     if (event.type === 'payment_intent.canceled') {
+      const object = event.data.object;
+
       return {
         providerTransactionId: object.id,
         providerEventId: event.id,
