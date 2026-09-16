@@ -44,7 +44,7 @@ export class SubscriptionService {
   /**
    * Get a single subscription plan by slug
    */
-  async getPlanBySlug(slug: string) {
+  async getPlanBySlug(slug: string, _currency?: string) {
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { slug },
       include: {
@@ -107,7 +107,7 @@ export class SubscriptionService {
   /**
    * Create a new subscription
    */
-  async createSubscription(userId: string, planId: string) {
+  async createSubscription(userId: string, planId: string, _currency?: string) {
     // Get plan
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { id: planId },

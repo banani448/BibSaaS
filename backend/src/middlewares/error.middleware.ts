@@ -18,7 +18,9 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (err: Error | AppError, req: Request, res: Response, next: NextFunction) => {
-  const requestId = req.headers['x-request-id'] as string || 'unknown';
+  const requestId =
+    req.requestId ??
+    ((req.headers['x-request-id'] as string | undefined) || 'unknown');
 
   if (err instanceof AppError) {
     logger.error(`AppError: ${err.message}`, {
@@ -79,7 +81,9 @@ export const errorHandler = (err: Error | AppError, req: Request, res: Response,
 };
 
 export const notFoundHandler = (req: Request, res: Response) => {
-  const requestId = req.headers['x-request-id'] as string || 'unknown';
+  const requestId =
+    req.requestId ??
+    ((req.headers['x-request-id'] as string | undefined) || 'unknown');
 
   logger.warn(`404 Not Found: ${req.method} ${req.path}`, { requestId });
 

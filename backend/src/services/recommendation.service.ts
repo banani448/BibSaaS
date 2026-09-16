@@ -169,7 +169,7 @@ class RecommendationService {
 
     const recommendations = await Promise.all(
       hairstyles.map(async (hairstyle) => {
-        const score = this.calculateScore(hairstyle, faceShape || faceAnalysis.faceShape, hairType || faceAnalysis.hairTexture);
+        const score = this.calculateScore(hairstyle, faceShape || faceAnalysis.faceShape || undefined, hairType || faceAnalysis.hairTexture || undefined);
 
         const existingRecommendation = await prisma.recommendation.findFirst({
           where: {
@@ -183,7 +183,7 @@ class RecommendationService {
             where: { id: existingRecommendation.id },
             data: {
               compatibilityScore: score,
-              explanation: this.generateReason(hairstyle, faceShape || faceAnalysis.faceShape, hairType || faceAnalysis.hairTexture),
+              explanation: this.generateReason(hairstyle, faceShape || faceAnalysis.faceShape || undefined, hairType || faceAnalysis.hairTexture || undefined),
             },
           });
         }
@@ -194,7 +194,7 @@ class RecommendationService {
             faceAnalysisId,
             hairstyleId: hairstyle.id,
             compatibilityScore: score,
-            explanation: this.generateReason(hairstyle, faceShape || faceAnalysis.faceShape, hairType || faceAnalysis.hairTexture),
+            explanation: this.generateReason(hairstyle, faceShape || faceAnalysis.faceShape || undefined, hairType || faceAnalysis.hairTexture || undefined),
           },
         });
       })
@@ -206,7 +206,7 @@ class RecommendationService {
   /**
    * Calculate recommendation score
    */
-  private calculateScore(hairstyle: any, faceShape?: string | null, hairType?: string | null): number {
+  private calculateScore(hairstyle: { suitableFaceShapes?: string[]; suitableHairTextures?: string[] }, faceShape?: string, hairType?: string): number {
     let score = 50;
 
     if (faceShape && hairstyle.suitableFaceShapes?.includes(faceShape)) {
@@ -223,7 +223,7 @@ class RecommendationService {
   /**
    * Generate recommendation reason
    */
-  private generateReason(hairstyle: any, faceShape?: string | null, hairType?: string | null): string {
+  private generateReason(hairstyle: { suitableFaceShapes?: string[]; suitableHairTextures?: string[] }, faceShape?: string, hairType?: string): string {
     const reasons: string[] = [];
 
     if (faceShape && hairstyle.suitableFaceShapes?.includes(faceShape)) {

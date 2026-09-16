@@ -88,9 +88,14 @@ class AdminController {
       const result = await salonService.listSalons({
         page: Number(page),
         limit: Number(limit),
-        city: city as string,
-        country: country as string,
-        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        cityId: city as string,
+        countryId: country as string,
+        status:
+          isActive === 'true'
+            ? 'ACTIVE'
+            : isActive === 'false'
+              ? 'SUSPENDED'
+              : undefined,
         search: search as string,
       });
 
@@ -156,12 +161,12 @@ class AdminController {
     try {
       const [totalUsers, activeUsers, totalBarbers, totalSalons, activeSalons, totalBookings, activeSubscriptions] = await Promise.all([
         prisma.user.count(),
-        prisma.user.count({ where: { status: 'ACTIVE' } }),
+        prisma.user.count({ where: { status: 'ACTIVE' as any } }),
         prisma.barber.count(),
         prisma.salon.count(),
-        prisma.salon.count({ where: { isActive: true } }),
+        prisma.salon.count({ where: { status: 'ACTIVE' as any } }),
         prisma.booking.count(),
-        prisma.subscription.count({ where: { status: 'ACTIVE', endDate: { gte: new Date() } } }),
+        prisma.subscription.count({ where: { status: 'ACTIVE' as any, endDate: { gte: new Date() } } }),
       ]);
 
       return res.json({

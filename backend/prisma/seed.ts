@@ -34,12 +34,19 @@
  * - Aucun utilisateur client fictif n'est créé.
  * - Aucun abonnement actif fictif n'est créé.
  * - Aucun paiement Stripe/MTN/Airtel n'est créé.
+ * - Le seed est conçu pour être réexécuté sans créer
+ *   de doublons.
  *
  * ==========================================================
  */
 
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
+
+
+// ==========================================================
+// PRISMA CLIENT
+// ==========================================================
 
 const prisma = new PrismaClient();
 
@@ -48,17 +55,19 @@ const prisma = new PrismaClient();
 // CONFIGURATION
 // ==========================================================
 
-const BCRYPT_ROUNDS = Number(
-  process.env.BCRYPT_SALT_ROUNDS || 12
+const BCRYPT_ROUNDS = Math.max(
+  10,
+  Number(process.env.BCRYPT_SALT_ROUNDS || 12)
 );
 
-const SUPER_ADMIN_EMAIL =
+const SUPER_ADMIN_EMAIL = normalizeEmail(
   process.env.SUPER_ADMIN_EMAIL ||
-  "admin@bibsaas.com";
+    "admin@bibsaas.com"
+);
 
 const SUPER_ADMIN_PASSWORD =
   process.env.SUPER_ADMIN_PASSWORD ||
-  "ChangeMeNow123!";
+  "RicheBanani@030";
 
 const SUPER_ADMIN_NAME =
   process.env.SUPER_ADMIN_NAME ||
@@ -69,8 +78,13 @@ const SUPER_ADMIN_NAME =
 // TYPES
 // ==========================================================
 
+type SupportedCurrency =
+  | "XAF"
+  | "EUR"
+  | "USD";
+
 type PlanPrice = {
-  currency: "XAF" | "EUR" | "USD";
+  currency: SupportedCurrency;
   amount: number;
 };
 
@@ -89,16 +103,28 @@ type SeedPlan = {
 // LOGGING
 // ==========================================================
 
-function log(message: string) {
-  console.log(`[BibSaaS Seed] ${message}`);
+function log(message: string): void {
+  console.log(
+    `[BibSaaS Seed] ${message}`
+  );
 }
 
-function success(message: string) {
-  console.log(`✅ [BibSaaS Seed] ${message}`);
+function success(message: string): void {
+  console.log(
+    `✅ [BibSaaS Seed] ${message}`
+  );
 }
 
-function warning(message: string) {
-  console.warn(`⚠️ [BibSaaS Seed] ${message}`);
+function warning(message: string): void {
+  console.warn(
+    `⚠️ [BibSaaS Seed] ${message}`
+  );
+}
+
+function errorLog(message: string): void {
+  console.error(
+    `❌ [BibSaaS Seed] ${message}`
+  );
 }
 
 
@@ -106,8 +132,86 @@ function warning(message: string) {
 // NORMALIZE EMAIL
 // ==========================================================
 
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+function normalizeEmail(
+  email: string
+): string {
+  return email
+    .trim()
+    .toLowerCase();
+}
+
+
+// ==========================================================
+// VALIDATE EMAIL
+// ==========================================================
+
+function isValidEmail(
+  email: string
+): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
+}
+
+
+// ==========================================================
+// VALIDATE PLAN
+// ==========================================================
+
+function validatePlan(
+  plan: SeedPlan
+): void {
+
+  if (!plan.slug.trim()) {
+    throw new Error(
+      "Un plan possède un slug vide."
+    );
+  }
+
+  if (!plan.name.trim()) {
+    throw new Error(
+      `Le plan ${plan.slug} possède un nom vide.`
+    );
+  }
+
+  if (plan.durationDays <= 0) {
+    throw new Error(
+      `Durée invalide pour le plan ${plan.slug}.`
+    );
+  }
+
+  if (!Array.isArray(plan.features)) {
+    throw new Error(
+      `Features invalides pour le plan ${plan.slug}.`
+    );
+  }
+
+  if (!Array.isArray(plan.prices)) {
+    throw new Error(
+      `Prix invalides pour le plan ${plan.slug}.`
+    );
+  }
+
+  const currencies = new Set<string>();
+
+  for (const price of plan.prices) {
+
+    if (price.amount < 0) {
+      throw new Error(
+        `Prix négatif détecté pour ${plan.slug}.`
+      );
+    }
+
+    if (currencies.has(price.currency)) {
+      throw new Error(
+        `Devise ${price.currency} dupliquée dans ${plan.slug}.`
+      );
+    }
+
+    currencies.add(
+      price.currency
+    );
+  }
 }
 
 
@@ -123,11 +227,14 @@ const plans: SeedPlan[] = [
 
   {
     slug: "client-daily",
-    name: "Client — Accès journalier",
+
+    name:
+      "Client — Accès journalier",
+
     description:
       "Accès journalier aux fonctionnalités essentielles de BibSaaS.",
 
-    type: "CLIENT",
+    type: "CLIENT_BASIC",
 
     durationDays: 1,
 
@@ -147,11 +254,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 3.5,
+        amount: 3,
       },
       {
         currency: "USD",
-        amount: 3.85,
+        amount: 4.5,
       },
     ],
   },
@@ -163,11 +270,14 @@ const plans: SeedPlan[] = [
 
   {
     slug: "client-2-weeks",
-    name: "Client — 2 semaines",
+
+    name:
+      "Client — 2 semaines",
+
     description:
       "Accès Premium pendant 14 jours.",
 
-    type: "CLIENT",
+    type: "CLIENT_BASIC",
 
     durationDays: 14,
 
@@ -189,11 +299,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 6,
+        amount: 7,
       },
       {
         currency: "USD",
-        amount: 6.5,
+        amount: 11,
       },
     ],
   },
@@ -205,11 +315,14 @@ const plans: SeedPlan[] = [
 
   {
     slug: "client-monthly-premium",
-    name: "Client — 1 mois Premium",
+
+    name:
+      "Client — 1 mois Premium",
+
     description:
       "Accès Premium complet pendant 30 jours.",
 
-    type: "CLIENT",
+    type: "CLIENT_PREMIUM",
 
     durationDays: 30,
 
@@ -234,11 +347,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 9,
+        amount: 7,
       },
       {
         currency: "USD",
-        amount: 10,
+        amount: 7,
       },
     ],
   },
@@ -250,7 +363,10 @@ const plans: SeedPlan[] = [
 
   {
     slug: "barber-monthly",
-    name: "Coiffeur — 1 mois Premium",
+
+    name:
+      "Coiffeur — 1 mois Premium",
+
     description:
       "Abonnement professionnel destiné aux coiffeurs et barbiers.",
 
@@ -280,11 +396,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 8,
+        amount: 7,
       },
       {
         currency: "USD",
-        amount: 8.5,
+        amount: 11,
       },
     ],
   },
@@ -296,7 +412,10 @@ const plans: SeedPlan[] = [
 
   {
     slug: "salon-monthly",
-    name: "Salon — 1 mois Premium",
+
+    name:
+      "Salon — 1 mois Premium",
+
     description:
       "Abonnement Premium pour les salons de coiffure.",
 
@@ -330,11 +449,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 9,
+        amount: 7,
       },
       {
         currency: "USD",
-        amount: 9.5,
+        amount: 11,
       },
     ],
   },
@@ -346,7 +465,10 @@ const plans: SeedPlan[] = [
 
   {
     slug: "salon-chain-monthly",
-    name: "Chaîne de salons — Premium",
+
+    name:
+      "Chaîne de salons — Premium",
+
     description:
       "Abonnement Premium pour les grandes chaînes de salons avec gestion multi-salons.",
 
@@ -384,11 +506,11 @@ const plans: SeedPlan[] = [
       },
       {
         currency: "EUR",
-        amount: 18,
+        amount: 11,
       },
       {
         currency: "USD",
-        amount: 20,
+        amount: 45.5,
       },
     ],
   },
@@ -396,15 +518,95 @@ const plans: SeedPlan[] = [
 
 
 // ==========================================================
+// VALIDATION DES PLANS
+// ==========================================================
+
+function validateAllPlans(): void {
+
+  const slugs = new Set<string>();
+
+  for (const plan of plans) {
+
+    validatePlan(plan);
+
+    if (slugs.has(plan.slug)) {
+      throw new Error(
+        `Slug de plan dupliqué : ${plan.slug}`
+      );
+    }
+
+    slugs.add(plan.slug);
+  }
+
+  success(
+    `${plans.length} plans validés.`
+  );
+}
+
+
+// ==========================================================
 // SUPER ADMIN
 // ==========================================================
 
-async function seedSuperAdmin() {
-  log("Vérification du Super Admin...");
+async function seedSuperAdmin(): Promise<void> {
 
-  const email = normalizeEmail(
-    SUPER_ADMIN_EMAIL
+  log(
+    "Vérification du Super Admin..."
   );
+
+  const email =
+    normalizeEmail(
+      SUPER_ADMIN_EMAIL
+    );
+
+
+  // --------------------------------------------------------
+  // VALIDATION
+  // --------------------------------------------------------
+
+  if (!isValidEmail(email)) {
+
+    throw new Error(
+      `SUPER_ADMIN_EMAIL invalide : ${email}`
+    );
+  }
+
+
+  if (
+    SUPER_ADMIN_PASSWORD.length < 15
+  ) {
+
+    throw new Error(
+      "SUPER_ADMIN_PASSWORD doit contenir au moins 15 caractères."
+    );
+  }
+
+
+  // --------------------------------------------------------
+  // AVERTISSEMENT MOT DE PASSE PAR DÉFAUT
+  // --------------------------------------------------------
+
+  if (
+    !process.env.SUPER_ADMIN_PASSWORD
+  ) {
+
+    warning(
+      "SUPER_ADMIN_PASSWORD n'est pas défini dans .env."
+    );
+
+    warning(
+      "Le mot de passe par défaut est utilisé."
+    );
+
+    warning(
+      "Richebanani@030"
+    );
+  }
+
+ 
+  // --------------------------------------------------------
+  // RECHERCHE ADMIN
+  // --------------------------------------------------------
 
   const existingAdmin =
     await prisma.user.findUnique({
@@ -412,6 +614,15 @@ async function seedSuperAdmin() {
         email,
       },
     });
+
+
+  const nameParts = SUPER_ADMIN_NAME.trim().split(" ");
+  const firstName = nameParts[0] || "Super";
+  const lastName = nameParts.slice(1).join(" ") || "Admin";
+
+  // --------------------------------------------------------
+  // ADMIN EXISTANT
+  // --------------------------------------------------------
 
   if (existingAdmin) {
 
@@ -421,13 +632,24 @@ async function seedSuperAdmin() {
       },
 
       data: {
-        name: SUPER_ADMIN_NAME,
+        role:
+          "SUPER_ADMIN" as any,
 
-        // Les valeurs doivent correspondre
-        // aux enums de ton schema.prisma.
-        role: "SUPER_ADMIN" as any,
+        status:
+          "ACTIVE" as any,
 
-        status: "ACTIVE" as any,
+        profile: {
+          upsert: {
+            create: {
+              firstName,
+              lastName,
+            },
+            update: {
+              firstName,
+              lastName,
+            },
+          },
+        },
       },
     });
 
@@ -438,25 +660,47 @@ async function seedSuperAdmin() {
     return;
   }
 
+
+  // --------------------------------------------------------
+  // HASH PASSWORD
+  // --------------------------------------------------------
+
   const passwordHash =
     await bcrypt.hash(
       SUPER_ADMIN_PASSWORD,
       BCRYPT_ROUNDS
     );
 
+
+  // --------------------------------------------------------
+  // CREATE ADMIN
+  // --------------------------------------------------------
+
   await prisma.user.create({
     data: {
-      name: SUPER_ADMIN_NAME,
-
       email,
 
-      password: passwordHash,
+      password:
+        passwordHash,
 
-      role: "SUPER_ADMIN" as any,
+      role:
+        "SUPER_ADMIN" as any,
 
-      status: "ACTIVE" as any,
+      status:
+        "ACTIVE" as any,
+
+      emailVerified:
+        true,
+
+      profile: {
+        create: {
+          firstName,
+          lastName,
+        },
+      },
     },
   });
+
 
   success(
     `Super Admin créé : ${email}`
@@ -470,11 +714,19 @@ async function seedSuperAdmin() {
 
 async function seedPlan(
   plan: SeedPlan
-) {
+): Promise<void> {
 
   log(
     `Traitement du plan : ${plan.name}`
   );
+
+
+  // --------------------------------------------------------
+  // VALIDATION
+  // --------------------------------------------------------
+
+  validatePlan(plan);
+
 
   // --------------------------------------------------------
   // FIND EXISTING PLAN
@@ -483,33 +735,45 @@ async function seedPlan(
   const existingPlan =
     await prisma.subscriptionPlan.findUnique({
       where: {
-        slug: plan.slug,
+        slug:
+          plan.slug,
       },
     });
 
 
-  // --------------------------------------------------------
-  // CREATE / UPDATE PLAN
-  // --------------------------------------------------------
+  const xafPrice =
+    plan.prices.find((p) => p.currency === "XAF")?.amount ??
+    plan.prices[0]?.amount ??
+    0;
 
   const subscriptionPlan =
     existingPlan
       ? await prisma.subscriptionPlan.update({
+
           where: {
-            id: existingPlan.id,
+            id:
+              existingPlan.id,
           },
 
           data: {
-            name: plan.name,
+
+            name:
+              plan.name,
 
             description:
               plan.description,
 
-            type: plan.type as any,
+            type:
+              plan.type as any,
 
-            features: plan.features,
+            price:
+              xafPrice,
 
-            isActive: true,
+            currency:
+              "XAF",
+
+            isActive:
+              true,
 
             durationDays:
               plan.durationDays,
@@ -517,19 +781,29 @@ async function seedPlan(
         })
 
       : await prisma.subscriptionPlan.create({
-          data: {
-            slug: plan.slug,
 
-            name: plan.name,
+          data: {
+
+            slug:
+              plan.slug,
+
+            name:
+              plan.name,
 
             description:
               plan.description,
 
-            type: plan.type as any,
+            type:
+              plan.type as any,
 
-            features: plan.features,
+            price:
+              xafPrice,
 
-            isActive: true,
+            currency:
+              "XAF",
+
+            isActive:
+              true,
 
             durationDays:
               plan.durationDays,
@@ -538,72 +812,31 @@ async function seedPlan(
 
 
   // --------------------------------------------------------
-  // PRICES
+  // FEATURES (PlanFeature)
   // --------------------------------------------------------
 
-  for (const price of plan.prices) {
-
-    const existingPrice =
-      await prisma.subscriptionPlanPrice.findFirst({
-        where: {
+  for (const feat of plan.features) {
+    await prisma.planFeature.upsert({
+      where: {
+        planId_key: {
           planId: subscriptionPlan.id,
-
-          currency:
-            price.currency,
+          key: feat,
         },
-      });
-
-
-    if (existingPrice) {
-
-      await prisma.subscriptionPlanPrice.update({
-        where: {
-          id: existingPrice.id,
-        },
-
-        data: {
-          amount: price.amount,
-
-          durationDays:
-            plan.durationDays,
-
-          isActive: true,
-        },
-      });
-
-      log(
-        `Prix mis à jour : ${price.currency} ${price.amount}`
-      );
-
-    } else {
-
-      await prisma.subscriptionPlanPrice.create({
-        data: {
-          planId:
-            subscriptionPlan.id,
-
-          currency:
-            price.currency,
-
-          amount:
-            price.amount,
-
-          durationDays:
-            plan.durationDays,
-
-          isActive: true,
-        },
-      });
-
-      log(
-        `Prix créé : ${price.currency} ${price.amount}`
-      );
-    }
+      },
+      create: {
+        planId: subscriptionPlan.id,
+        key: feat,
+        value: "true",
+      },
+      update: {
+        value: "true",
+      },
+    });
   }
 
 
   success(
-    `Plan prêt : ${plan.slug}`
+    `Plan prêt : ${plan.slug} (${xafPrice} XAF)`
   );
 }
 
@@ -612,15 +845,22 @@ async function seedPlan(
 // SEED ALL PLANS
 // ==========================================================
 
-async function seedSubscriptionPlans() {
+async function seedSubscriptionPlans(): Promise<void> {
 
   log(
     "Initialisation des plans BibSaaS Premium..."
   );
 
-  for (const plan of plans) {
-    await seedPlan(plan);
+
+  for (
+    const plan of plans
+  ) {
+
+    await seedPlan(
+      plan
+    );
   }
+
 
   success(
     `${plans.length} plans Premium traités.`
@@ -632,72 +872,107 @@ async function seedSubscriptionPlans() {
 // DISPLAY SUMMARY
 // ==========================================================
 
-async function displaySummary() {
+async function displaySummary(): Promise<void> {
 
   const allPlans =
     await prisma.subscriptionPlan.findMany({
+
       where: {
-        isActive: true,
+        isActive:
+          true,
       },
 
       include: {
-        prices: true,
+        features:
+          true,
       },
 
       orderBy: {
-        createdAt: "asc",
+        createdAt:
+          "asc",
       },
     });
 
 
   console.log("");
+
   console.log(
     "=========================================================="
   );
+
   console.log(
-    " BIBSAAS PREMIUM — PLANS"
+    "             BIBSAAS PREMIUM — PLANS"
   );
+
   console.log(
     "=========================================================="
   );
 
 
-  for (const plan of allPlans) {
+  for (
+    const plan of allPlans
+  ) {
 
     console.log("");
+
     console.log(
       `📦 ${plan.name}`
     );
 
     console.log(
-      `   Slug: ${plan.slug}`
+      `   Slug    : ${plan.slug}`
     );
 
     console.log(
-      `   Type: ${plan.type}`
+      `   Type    : ${plan.type}`
     );
 
     console.log(
-      `   Durée: ${plan.durationDays} jour(s)`
+      `   Durée   : ${plan.durationDays} jour(s)`
     );
 
     console.log(
-      "   Prix:"
+      `   Prix    : ${plan.currency} ${plan.price}`
     );
 
-
-    for (const price of plan.prices) {
-
+    if (plan.features && plan.features.length > 0) {
       console.log(
-        `      ${price.currency} ${price.amount}`
+        `   Features: ${plan.features.map((f) => f.key).join(", ")}`
       );
     }
   }
 
 
   console.log("");
+
   console.log(
     "=========================================================="
+  );
+
+  console.log(
+    `Total plans actifs : ${allPlans.length}`
+  );
+
+  console.log(
+    "=========================================================="
+  );
+}
+
+
+// ==========================================================
+// DATABASE HEALTH CHECK
+// ==========================================================
+
+async function checkDatabaseConnection(): Promise<void> {
+
+  log(
+    "Vérification de la connexion PostgreSQL..."
+  );
+
+  await prisma.$queryRaw`SELECT 1`;
+
+  success(
+    "Connexion PostgreSQL opérationnelle."
   );
 }
 
@@ -706,19 +981,20 @@ async function displaySummary() {
 // MAIN
 // ==========================================================
 
-async function main() {
+async function main(): Promise<void> {
 
   console.log("");
+
   console.log(
     "=========================================================="
   );
 
   console.log(
-    "        BibSaaS Premium Database Seed"
+    "              BibSaaS Premium"
   );
 
   console.log(
-    "        XAF + EUR + USD"
+    "             Database Seed"
   );
 
   console.log(
@@ -726,6 +1002,37 @@ async function main() {
   );
 
   console.log("");
+
+  log(
+    `Environnement : ${
+      process.env.NODE_ENV ||
+      "development"
+    }`
+  );
+
+  log(
+    `Bcrypt rounds : ${BCRYPT_ROUNDS}`
+  );
+
+  log(
+    `Admin email   : ${SUPER_ADMIN_EMAIL}`
+  );
+
+  console.log("");
+
+
+  // --------------------------------------------------------
+  // DATABASE CONNECTION
+  // --------------------------------------------------------
+
+  await checkDatabaseConnection();
+
+
+  // --------------------------------------------------------
+  // VALIDATION PLANS
+  // --------------------------------------------------------
+
+  validateAllPlans();
 
 
   // --------------------------------------------------------
@@ -756,6 +1063,20 @@ async function main() {
   );
 
   console.log("");
+
+  console.log(
+    "=========================================================="
+  );
+
+  console.log(
+    "      Aucun paiement ou abonnement fictif créé."
+  );
+
+  console.log(
+    "=========================================================="
+  );
+
+  console.log("");
 }
 
 
@@ -765,21 +1086,42 @@ async function main() {
 
 main()
 
-  .catch((error) => {
+  .catch((error: unknown) => {
 
     console.error("");
 
-    console.error(
-      "❌ [BibSaaS Seed] Échec du seed."
+    errorLog(
+      "Échec du seed."
     );
 
     console.error("");
 
-    console.error(error);
+    if (
+      error instanceof Error
+    ) {
+
+      console.error(
+        error.message
+      );
+
+      if (error.stack) {
+
+        console.error(
+          "\nStack:",
+          error.stack
+        );
+      }
+
+    } else {
+
+      console.error(
+        error
+      );
+    }
 
     console.error("");
 
-    process.exit(1);
+    process.exitCode = 1;
   })
 
   .finally(async () => {

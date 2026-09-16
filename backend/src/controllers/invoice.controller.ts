@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import invoiceService from '../services/invoice.service';
 
@@ -25,7 +26,7 @@ class InvoiceController {
         message: 'Invoice created successfully',
         data: invoice,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -36,7 +37,7 @@ class InvoiceController {
    */
   async getMyInvoices(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -51,14 +52,14 @@ class InvoiceController {
       const result = await invoiceService.getUserInvoices(userId, {
         page: Number(page),
         limit: Number(limit),
-        status: status as string,
+        status: typeof status === 'string' ? status : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -77,7 +78,7 @@ class InvoiceController {
         success: true,
         data: invoice,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -88,22 +89,35 @@ class InvoiceController {
    */
   async listInvoices(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, userId, status, fromDate, toDate } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        userId,
+        status,
+        fromDate,
+        toDate,
+      } = req.query;
 
       const result = await invoiceService.listInvoices({
         page: Number(page),
         limit: Number(limit),
-        userId: userId as string,
-        status: status as string,
-        fromDate: fromDate ? new Date(fromDate as string) : undefined,
-        toDate: toDate ? new Date(toDate as string) : undefined,
+        userId: typeof userId === 'string' ? userId : undefined,
+        status: typeof status === 'string' ? status : undefined,
+        fromDate:
+          typeof fromDate === 'string'
+            ? new Date(fromDate)
+            : undefined,
+        toDate:
+          typeof toDate === 'string'
+            ? new Date(toDate)
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -112,7 +126,11 @@ class InvoiceController {
    * PATCH /api/invoices/:id/status
    * Update invoice status (admin)
    */
-  async updateInvoiceStatus(req: Request, res: Response, next: NextFunction) {
+  async updateInvoiceStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -125,14 +143,15 @@ class InvoiceController {
         });
       }
 
-      const updatedInvoice = await invoiceService.updateInvoiceStatus(id, status);
+      const updatedInvoice =
+        await invoiceService.updateInvoiceStatus(id, status);
 
       return res.json({
         success: true,
         message: 'Invoice status updated successfully',
         data: updatedInvoice,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -141,7 +160,11 @@ class InvoiceController {
    * DELETE /api/invoices/:id
    * Delete invoice (admin)
    */
-  async deleteInvoice(req: Request, res: Response, next: NextFunction) {
+  async deleteInvoice(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { id } = req.params;
 
@@ -151,7 +174,7 @@ class InvoiceController {
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -160,23 +183,34 @@ class InvoiceController {
    * GET /api/invoices/stats
    * Get invoice statistics (admin)
    */
-  async getInvoiceStats(req: Request, res: Response, next: NextFunction) {
+  async getInvoiceStats(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { startDate, endDate } = req.query;
 
       const stats = await invoiceService.getInvoiceStats({
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined,
+        startDate:
+          typeof startDate === 'string'
+            ? new Date(startDate)
+            : undefined,
+        endDate:
+          typeof endDate === 'string'
+            ? new Date(endDate)
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: stats,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
 }
 
 export default new InvoiceController();
+

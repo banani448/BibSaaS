@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import bookingService from '../services/booking.service';
 
@@ -8,7 +9,7 @@ class BookingController {
    */
   async createBooking(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -18,13 +19,30 @@ class BookingController {
         });
       }
 
-      const { barberId, salonId, scheduledDate, duration, services, notes } = req.body;
+      const {
+        barberId,
+        salonId,
+        scheduledDate,
+        duration,
+        notes,
+      } = req.body;
 
-      if (!barberId || !salonId || !scheduledDate || !duration || !services) {
+      if (!barberId || !salonId || !scheduledDate || duration === undefined) {
         return res.status(400).json({
           success: false,
-          message: 'barberId, salonId, scheduledDate, duration, and services are required',
+          message:
+            'barberId, salonId, scheduledDate, and duration are required',
           code: 'MISSING_FIELDS',
+        });
+      }
+
+      const parsedDate = new Date(scheduledDate);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid scheduledDate',
+          code: 'INVALID_DATE',
         });
       }
 
@@ -32,9 +50,8 @@ class BookingController {
         userId,
         barberId,
         salonId,
-        scheduledDate: new Date(scheduledDate),
+        scheduledDate: parsedDate,
         duration,
-        services,
         notes,
       });
 
@@ -43,7 +60,7 @@ class BookingController {
         message: 'Booking created successfully',
         data: booking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -54,7 +71,7 @@ class BookingController {
    */
   async getMyBookings(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -69,14 +86,14 @@ class BookingController {
       const result = await bookingService.getUserBookings(userId, {
         page: Number(page),
         limit: Number(limit),
-        status: status as string,
+        status: typeof status === 'string' ? status : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -89,13 +106,18 @@ class BookingController {
     try {
       const { id } = req.params;
 
-      const booking = await bookingService.getBookingById(id);
+      const clientId =
+        req.user?.role === 'CLIENT'
+          ? req.user.id
+          : undefined;
+
+      const booking = await bookingService.getBookingById(id, clientId);
 
       return res.json({
         success: true,
         data: booking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -108,22 +130,49 @@ class BookingController {
     try {
       const { id } = req.params;
 
-      const { scheduledDate, duration, services, notes, status } = req.body;
-
-      const updatedBooking = await bookingService.updateBooking(id, {
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+      const {
+        scheduledDate,
         duration,
-        services,
         notes,
         status,
-      });
+      } = req.body;
+
+      let parsedDate: Date | undefined;
+
+      if (scheduledDate !== undefined) {
+        parsedDate = new Date(scheduledDate);
+
+        if (Number.isNaN(parsedDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid scheduledDate',
+            code: 'INVALID_DATE',
+          });
+        }
+      }
+
+      const clientId =
+        req.user?.role === 'CLIENT'
+          ? req.user.id
+          : undefined;
+
+      const updatedBooking = await bookingService.updateBooking(
+        id,
+        {
+          scheduledDate: parsedDate,
+          duration,
+          notes,
+          status,
+        },
+        clientId,
+      );
 
       return res.json({
         success: true,
         message: 'Booking updated successfully',
         data: updatedBooking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -134,7 +183,7 @@ class BookingController {
    */
   async cancelBooking(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -146,14 +195,17 @@ class BookingController {
 
       const { id } = req.params;
 
-      const updatedBooking = await bookingService.cancelBooking(id, userId);
+      const updatedBooking = await bookingService.cancelBooking(
+        id,
+        userId,
+      );
 
       return res.json({
         success: true,
         message: 'Booking cancelled successfully',
         data: updatedBooking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -173,7 +225,7 @@ class BookingController {
         message: 'Booking confirmed successfully',
         data: updatedBooking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -193,7 +245,7 @@ class BookingController {
         message: 'Booking completed successfully',
         data: updatedBooking,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -204,24 +256,39 @@ class BookingController {
    */
   async listBookings(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, userId, barberId, salonId, status, fromDate, toDate } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        userId,
+        barberId,
+        salonId,
+        status,
+        fromDate,
+        toDate,
+      } = req.query;
 
       const result = await bookingService.listBookings({
         page: Number(page),
         limit: Number(limit),
-        userId: userId as string,
-        barberId: barberId as string,
-        salonId: salonId as string,
-        status: status as string,
-        fromDate: fromDate ? new Date(fromDate as string) : undefined,
-        toDate: toDate ? new Date(toDate as string) : undefined,
+        clientId: typeof userId === 'string' ? userId : undefined,
+        barberId: typeof barberId === 'string' ? barberId : undefined,
+        salonId: typeof salonId === 'string' ? salonId : undefined,
+        status: typeof status === 'string' ? status : undefined,
+        fromDate:
+          typeof fromDate === 'string'
+            ? new Date(fromDate)
+            : undefined,
+        toDate:
+          typeof toDate === 'string'
+            ? new Date(toDate)
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -230,25 +297,41 @@ class BookingController {
    * GET /api/bookings/barber/:barberId
    * Get barber's bookings
    */
-  async getBarberBookings(req: Request, res: Response, next: NextFunction) {
+  async getBarberBookings(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const { barberId } = req.params;
 
-      const { page = 1, limit = 20, status, fromDate, toDate } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        status,
+        fromDate,
+        toDate,
+      } = req.query;
 
       const result = await bookingService.getBarberBookings(barberId, {
         page: Number(page),
         limit: Number(limit),
-        status: status as string,
-        fromDate: fromDate ? new Date(fromDate as string) : undefined,
-        toDate: toDate ? new Date(toDate as string) : undefined,
+        status: typeof status === 'string' ? status : undefined,
+        fromDate:
+          typeof fromDate === 'string'
+            ? new Date(fromDate)
+            : undefined,
+        toDate:
+          typeof toDate === 'string'
+            ? new Date(toDate)
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -257,28 +340,45 @@ class BookingController {
    * GET /api/bookings/salon/:salonId
    * Get salon's bookings
    */
-  async getSalonBookings(req: Request, res: Response, next: NextFunction) {
+  async getSalonBookings(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const { salonId } = req.params;
 
-      const { page = 1, limit = 20, status, fromDate, toDate } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        status,
+        fromDate,
+        toDate,
+      } = req.query;
 
       const result = await bookingService.getSalonBookings(salonId, {
         page: Number(page),
         limit: Number(limit),
-        status: status as string,
-        fromDate: fromDate ? new Date(fromDate as string) : undefined,
-        toDate: toDate ? new Date(toDate as string) : undefined,
+        status: typeof status === 'string' ? status : undefined,
+        fromDate:
+          typeof fromDate === 'string'
+            ? new Date(fromDate)
+            : undefined,
+        toDate:
+          typeof toDate === 'string'
+            ? new Date(toDate)
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: result,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
 }
 
 export default new BookingController();
+

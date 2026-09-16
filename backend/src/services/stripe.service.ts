@@ -1,301 +1,608 @@
+import Stripe from "stripe";
+import {
+  getStripe,
+  getStripeWebhookSecret,
+  stripeConfig,
+} from "../config/stripe";
 
-// server/src/services/providers/stripe.provider.js
+// ============================================================
+// TYPES
+// ============================================================
 
-const Stripe = require("stripe");
+export interface StripePaymentLink {
+  id: string;
+  url: string;
+  active: boolean;
+  livemode: boolean;
+}
 
-class StripeProvider {
-  constructor() {
-    this.enabled =
-      process.env.STRIPE_ENABLED === "true";
+export interface StripeWebhookResult {
+  eventId: string;
+  eventType: string;
+  status:
+    | "SUCCESS"
+    | "FAILED"
+    | "CANCELLED"
+    | "PROCESSING"
+    | "IGNORED";
 
-    this.stripe =
-      this.enabled &&
-      process.env.STRIPE_SECRET_KEY
-        ? new Stripe(
-            process.env.STRIPE_SECRET_KEY
-          )
-        : null;
-  }
+  providerTransactionId?: string;
+  providerPaymentId?: string;
 
-  ensureConfigured() {
-    if (!this.enabled) {
-      throw new Error(
-        "Stripe payments are disabled"
-      );
+  transactionReference?: string;
+
+  amount?: number;
+  currency?: string;
+
+  customerId?: string;
+  customerEmail?: string;
+
+  subscriptionId?: string;
+
+  paymentLinkId?: string;
+
+  metadata?: Record<string, string>;
+
+  payload: Stripe.Event;
+}
+
+// ============================================================
+// SERVICE
+// ============================================================
+
+class StripeService {
+  // ==========================================================
+  // CONFIGURATION
+  // ==========================================================
+
+  ensureConfigured(): void {
+    if (!stripeConfig.enabled) {
+      throw new Error("Stripe est désactivé.");
     }
 
-    if (!this.stripe) {
-      throw new Error(
-        "Stripe is not configured"
-      );
-    }
+    getStripe();
   }
 
-  async initiatePayment({
-    payment,
-    amount,
-    currency,
-    idempotencyKey,
-    metadata = {},
-  }) {
+  // ==========================================================
+  // PAYMENT LINK
+  // ==========================================================
+
+  async retrievePaymentLink(
+    paymentLinkId: string
+  ): Promise<StripePaymentLink> {
     this.ensureConfigured();
 
-    /*
-     * Stripe utilise généralement la plus petite
-     * unité de la devise.
-     *
-     * Pour XAF, vérifier les règles de devise
-     * du compte Stripe avant production.
-     */
+    if (!paymentLinkId?.trim()) {
+      throw new Error("paymentLinkId est obligatoire.");
+    }
 
-    const amountForStripe =
-      Number(amount);
+    const stripe = getStripe();
 
-    const intent =
-      await this.stripe.paymentIntents.create(
-        {
-          amount:
-            amountForStripe,
-
-          currency:
-            String(currency).toLowerCase(),
-
-          automatic_payment_methods: {
-            enabled: true,
-          },
-
-          metadata: {
-            bibsaasPaymentId:
-              payment.id,
-
-            transactionReference:
-              payment.transactionReference,
-
-            ...metadata,
-          },
-
-          description:
-            payment.description ||
-            "BibSaaS Premium",
-        },
-        {
-          idempotencyKey,
-        }
-      );
+    const paymentLink = await stripe.paymentLinks.retrieve(
+      paymentLinkId
+    );
 
     return {
-      status:
-        intent.status ===
-        "succeeded"
-          ? "SUCCESS"
-          : "PROCESSING",
-
-      providerPaymentId:
-        intent.id,
-
-      providerTransactionId:
-        intent.id,
-
-      providerStatus:
-        intent.status,
-
-      clientSecret:
-        intent.client_secret,
+      id: paymentLink.id,
+      url: paymentLink.url,
+      active: paymentLink.active,
+      livemode: paymentLink.livemode,
     };
   }
 
-  async verifyPayment(payment) {
+  // ==========================================================
+  // PAYMENT INTENT
+  // ==========================================================
+
+  async retrievePaymentIntent(
+    paymentIntentId: string
+  ): Promise<Stripe.PaymentIntent> {
     this.ensureConfigured();
 
-    if (!payment.providerPaymentId) {
-      throw new Error(
-        "Stripe payment intent is missing"
-      );
+    if (!paymentIntentId?.trim()) {
+      throw new Error("paymentIntentId est obligatoire.");
     }
 
-    const intent =
-      await this.stripe.paymentIntents.retrieve(
-        payment.providerPaymentId
-      );
+    const stripe = getStripe();
 
-    let status = "PROCESSING";
-
-    if (
-      intent.status === "succeeded"
-    ) {
-      status = "SUCCESS";
-    }
-
-    if (
-      intent.status ===
-        "requires_payment_method" ||
-      intent.status ===
-        "canceled"
-    ) {
-      status =
-        intent.status ===
-        "canceled"
-          ? "CANCELLED"
-          : "FAILED";
-    }
-
-    return {
-      status,
-
-      providerStatus:
-        intent.status,
-
-      providerTransactionId:
-        intent.id,
-    };
+    return stripe.paymentIntents.retrieve(paymentIntentId);
   }
 
-  async handleWebhook({
-    body,
-    rawBody,
-  }) {
+  // ==========================================================
+  // CHECKOUT SESSION
+  // ==========================================================
+
+  async retrieveCheckoutSession(
+    sessionId: string
+  ): Promise<Stripe.Checkout.Session> {
     this.ensureConfigured();
 
-    const signature =
-      arguments[0].headers?.[
-        "stripe-signature"
-      ];
-
-    if (!signature) {
-      throw new Error(
-        "Stripe webhook signature missing"
-      );
+    if (!sessionId?.trim()) {
+      throw new Error("sessionId est obligatoire.");
     }
 
-    if (
-      !process.env.STRIPE_WEBHOOK_SECRET
-    ) {
-      throw new Error(
-        "STRIPE_WEBHOOK_SECRET is not configured"
-      );
+    const stripe = getStripe();
+
+    return stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["payment_intent", "subscription"],
+    });
+  }
+
+  // ==========================================================
+  // WEBHOOK
+  // ==========================================================
+
+  constructWebhookEvent(
+    rawBody: Buffer | string,
+    signature: string
+  ): Stripe.Event {
+    this.ensureConfigured();
+
+    if (!signature?.trim()) {
+      throw new Error("Signature Stripe manquante.");
     }
 
-    const event =
-      this.stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
+    const stripe = getStripe();
 
-    const object =
-      event.data.object;
+    const webhookSecret = getStripeWebhookSecret();
 
-    if (
-      event.type ===
-      "payment_intent.succeeded"
-    ) {
+    return stripe.webhooks.constructEvent(
+      rawBody,
+      signature,
+      webhookSecret
+    );
+  }
+
+  // ==========================================================
+  // NORMALISATION WEBHOOK
+  // ==========================================================
+
+  handleWebhookEvent(
+    event: Stripe.Event
+  ): StripeWebhookResult {
+    const object = event.data.object as Record<string, any>;
+
+    const metadata = this.normalizeMetadata(object.metadata);
+
+    // --------------------------------------------------------
+    // CHECKOUT SESSION COMPLETED
+    // --------------------------------------------------------
+
+    if (event.type === "checkout.session.completed") {
+      const session =
+        event.data.object as Stripe.Checkout.Session;
+
+      const paymentStatus = session.payment_status;
+
+      let status:
+        | "SUCCESS"
+        | "PROCESSING"
+        | "FAILED" = "PROCESSING";
+
+      if (paymentStatus === "paid") {
+        status = "SUCCESS";
+      }
+
+      if (paymentStatus === "unpaid") {
+        status = "PROCESSING";
+      }
+
+      const paymentIntentId =
+        this.extractPaymentIntentId(
+          session.payment_intent
+        );
+
+      const subscriptionId =
+        this.extractSubscriptionId(
+          session.subscription
+        );
+
       return {
+        eventId: event.id,
+        eventType: event.type,
+        status,
+
         providerTransactionId:
-          object.id,
+          paymentIntentId || session.id,
 
-        providerEventId:
-          event.id,
-
-        status: "SUCCESS",
-
-        amount:
-          object.amount,
-
-        currency:
-          String(
-            object.currency
-          ).toUpperCase(),
-
-        providerStatus:
-          object.status,
+        providerPaymentId: session.id,
 
         transactionReference:
-          object.metadata
-            ?.transactionReference,
+          metadata.transactionReference,
 
-        payload:
-          event,
+        amount: session.amount_total ?? undefined,
 
-        signatureVerified:
-          true,
+        currency: session.currency
+          ? session.currency.toUpperCase()
+          : undefined,
+
+        customerId: this.extractCustomerId(
+          session.customer
+        ),
+
+        customerEmail:
+          session.customer_details?.email ||
+          undefined,
+
+        subscriptionId,
+
+        paymentLinkId:
+          this.extractPaymentLinkId(
+            session.payment_link
+          ),
+
+        metadata,
+
+        payload: event,
       };
     }
+
+    // --------------------------------------------------------
+    // PAYMENT INTENT SUCCEEDED
+    // --------------------------------------------------------
+
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent =
+        event.data.object as Stripe.PaymentIntent;
+
+      return {
+        eventId: event.id,
+        eventType: event.type,
+        status: "SUCCESS",
+
+        providerTransactionId:
+          paymentIntent.id,
+
+        providerPaymentId:
+          paymentIntent.id,
+
+        transactionReference:
+          metadata.transactionReference,
+
+        amount: paymentIntent.amount,
+
+        currency:
+          paymentIntent.currency.toUpperCase(),
+
+        customerId: this.extractCustomerId(
+          paymentIntent.customer
+        ),
+
+        metadata,
+
+        payload: event,
+      };
+    }
+
+    // --------------------------------------------------------
+    // PAYMENT INTENT FAILED
+    // --------------------------------------------------------
 
     if (
       event.type ===
       "payment_intent.payment_failed"
     ) {
+      const paymentIntent =
+        event.data.object as Stripe.PaymentIntent;
+
       return {
-        providerTransactionId:
-          object.id,
-
-        providerEventId:
-          event.id,
-
+        eventId: event.id,
+        eventType: event.type,
         status: "FAILED",
 
-        amount:
-          object.amount,
+        providerTransactionId:
+          paymentIntent.id,
 
-        currency:
-          String(
-            object.currency
-          ).toUpperCase(),
-
-        providerStatus:
-          object.status,
+        providerPaymentId:
+          paymentIntent.id,
 
         transactionReference:
-          object.metadata
-            ?.transactionReference,
+          metadata.transactionReference,
 
-        payload:
-          event,
+        amount: paymentIntent.amount,
 
-        signatureVerified:
-          true,
+        currency:
+          paymentIntent.currency.toUpperCase(),
+
+        customerId: this.extractCustomerId(
+          paymentIntent.customer
+        ),
+
+        metadata,
+
+        payload: event,
       };
     }
+
+    // --------------------------------------------------------
+    // PAYMENT INTENT CANCELED
+    // --------------------------------------------------------
 
     if (
       event.type ===
       "payment_intent.canceled"
     ) {
+      const paymentIntent =
+        event.data.object as Stripe.PaymentIntent;
+
       return {
-        providerTransactionId:
-          object.id,
-
-        providerEventId:
-          event.id,
-
+        eventId: event.id,
+        eventType: event.type,
         status: "CANCELLED",
 
-        amount:
-          object.amount,
+        providerTransactionId:
+          paymentIntent.id,
 
-        currency:
-          String(
-            object.currency
-          ).toUpperCase(),
-
-        providerStatus:
-          object.status,
+        providerPaymentId:
+          paymentIntent.id,
 
         transactionReference:
-          object.metadata
-            ?.transactionReference,
+          metadata.transactionReference,
 
-        payload:
-          event,
+        amount: paymentIntent.amount,
 
-        signatureVerified:
-          true,
+        currency:
+          paymentIntent.currency.toUpperCase(),
+
+        customerId: this.extractCustomerId(
+          paymentIntent.customer
+        ),
+
+        metadata,
+
+        payload: event,
       };
     }
 
-    return null;
+    // --------------------------------------------------------
+    // ASYNCHRONOUS PAYMENT SUCCESS
+    // --------------------------------------------------------
+
+    if (
+      event.type ===
+      "checkout.session.async_payment_succeeded"
+    ) {
+      const session =
+        event.data.object as Stripe.Checkout.Session;
+
+      const paymentIntentId =
+        this.extractPaymentIntentId(
+          session.payment_intent
+        );
+
+      return {
+        eventId: event.id,
+        eventType: event.type,
+        status: "SUCCESS",
+
+        providerTransactionId:
+          paymentIntentId || session.id,
+
+        providerPaymentId: session.id,
+
+        transactionReference:
+          metadata.transactionReference,
+
+        amount: session.amount_total ?? undefined,
+
+        currency: session.currency
+          ? session.currency.toUpperCase()
+          : undefined,
+
+        customerId: this.extractCustomerId(
+          session.customer
+        ),
+
+        customerEmail:
+          session.customer_details?.email ||
+          undefined,
+
+        subscriptionId:
+          this.extractSubscriptionId(
+            session.subscription
+          ),
+
+        paymentLinkId:
+          this.extractPaymentLinkId(
+            session.payment_link
+          ),
+
+        metadata,
+
+        payload: event,
+      };
+    }
+
+    // --------------------------------------------------------
+    // ASYNCHRONOUS PAYMENT FAILED
+    // --------------------------------------------------------
+
+    if (
+      event.type ===
+      "checkout.session.async_payment_failed"
+    ) {
+      const session =
+        event.data.object as Stripe.Checkout.Session;
+
+      return {
+        eventId: event.id,
+        eventType: event.type,
+        status: "FAILED",
+
+        providerTransactionId:
+          this.extractPaymentIntentId(
+            session.payment_intent
+          ) || session.id,
+
+        providerPaymentId: session.id,
+
+        transactionReference:
+          metadata.transactionReference,
+
+        amount: session.amount_total ?? undefined,
+
+        currency: session.currency
+          ? session.currency.toUpperCase()
+          : undefined,
+
+        customerId: this.extractCustomerId(
+          session.customer
+        ),
+
+        customerEmail:
+          session.customer_details?.email ||
+          undefined,
+
+        subscriptionId:
+          this.extractSubscriptionId(
+            session.subscription
+          ),
+
+        paymentLinkId:
+          this.extractPaymentLinkId(
+            session.payment_link
+          ),
+
+        metadata,
+
+        payload: event,
+      };
+    }
+
+    // --------------------------------------------------------
+    // OTHER EVENTS
+    // --------------------------------------------------------
+
+    return {
+      eventId: event.id,
+      eventType: event.type,
+      status: "IGNORED",
+      metadata,
+      payload: event,
+    };
+  }
+
+  // ==========================================================
+  // HELPERS
+  // ==========================================================
+
+  private normalizeMetadata(
+    metadata:
+      | Stripe.Metadata
+      | null
+      | undefined
+  ): Record<string, string> {
+    if (!metadata) {
+      return {};
+    }
+
+    const result: Record<string, string> = {};
+
+    Object.entries(metadata).forEach(
+      ([key, value]) => {
+        if (typeof value === "string") {
+          result[key] = value;
+        }
+      }
+    );
+
+    return result;
+  }
+
+  // ==========================================================
+  // PAYMENT INTENT ID
+  // ==========================================================
+
+  private extractPaymentIntentId(
+    value:
+      | string
+      | Stripe.PaymentIntent
+      | null
+      | undefined
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    return value.id;
+  }
+
+  // ==========================================================
+  // SUBSCRIPTION ID
+  // ==========================================================
+
+  private extractSubscriptionId(
+    value:
+      | string
+      | Stripe.Subscription
+      | null
+      | undefined
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    return value.id;
+  }
+
+  // ==========================================================
+  // CUSTOMER ID
+  // ==========================================================
+
+  private extractCustomerId(
+    value:
+      | string
+      | Stripe.Customer
+      | Stripe.DeletedCustomer
+      | null
+      | undefined
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    return value.id;
+  }
+
+  // ==========================================================
+  // PAYMENT LINK ID
+  // ==========================================================
+
+  private extractPaymentLinkId(
+    value:
+      | string
+      | Stripe.PaymentLink
+      | null
+      | undefined
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    return value.id;
   }
 }
 
-module.exports = StripeProvider;
+// ============================================================
+// INSTANCE
+// ============================================================
 
+const stripeService = new StripeService();
+
+export default stripeService;

@@ -23,11 +23,14 @@ class HairstyleController {
         description,
         imageUrl,
         category,
-        tags,
+        gender:
+          forMen === true
+            ? 'MEN'
+            : forWomen === true
+              ? 'WOMEN'
+              : undefined,
         suitableFaceShapes,
         hairTypes,
-        forMen,
-        forWomen,
       });
 
       return res.status(201).json({
@@ -52,8 +55,12 @@ class HairstyleController {
         page: Number(page),
         limit: Number(limit),
         category: category as string,
-        forMen: forMen === 'true' ? true : forMen === 'false' ? false : undefined,
-        forWomen: forWomen === 'true' ? true : forWomen === 'false' ? false : undefined,
+        gender:
+          forMen === 'true'
+            ? 'MEN'
+            : forWomen === 'true'
+              ? 'WOMEN'
+              : undefined,
         hairType: hairType as string,
         faceShape: faceShape as string,
         search: search as string,
@@ -101,11 +108,14 @@ class HairstyleController {
         description,
         imageUrl,
         category,
-        tags,
+        gender:
+          forMen === true
+            ? 'MEN'
+            : forWomen === true
+              ? 'WOMEN'
+              : undefined,
         suitableFaceShapes,
         hairTypes,
-        forMen,
-        forWomen,
       });
 
       return res.json({

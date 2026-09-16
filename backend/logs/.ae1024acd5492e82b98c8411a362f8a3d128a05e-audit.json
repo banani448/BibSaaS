@@ -1,0 +1,50 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "logs\\.ae1024acd5492e82b98c8411a362f8a3d128a05e-audit.json",
+    "files": [
+        {
+            "date": 1788818538555,
+            "name": "logs\\bibsaas-2026-09-07.log",
+            "hash": "a8107297e6d5dde0990627f6153bfe9b31ea3b7032b3391d2939575192cde7d0"
+        },
+        {
+            "date": 1788907494155,
+            "name": "logs\\bibsaas-2026-09-08.log",
+            "hash": "71b306d92be088ddbad672245c38c5f482e16a0aaa88d28642067ba7ce35fb93"
+        },
+        {
+            "date": 1788965247147,
+            "name": "logs\\bibsaas-2026-09-09.log",
+            "hash": "5a0113027c8eff919b92c60f2fb230212608e4a97da2d5ec07a5ff6f5914ee48"
+        },
+        {
+            "date": 1789124041433,
+            "name": "logs\\bibsaas-2026-09-11.log",
+            "hash": "10a0ce335092578969597aa7c86c0e90cde17c466fde930392cac2b8041e7052"
+        },
+        {
+            "date": 1789191418579,
+            "name": "logs\\bibsaas-2026-09-12.log",
+            "hash": "b36790043cec97080f0bd266d2951b6fc6f0e8517e0aaf057a665a42274b697d"
+        },
+        {
+            "date": 1789321327820,
+            "name": "logs\\bibsaas-2026-09-13.log",
+            "hash": "df32191dc9249402dbab88149943a9d4fbb6148d8970a7dc25758856fd0b82ce"
+        },
+        {
+            "date": 1789368002444,
+            "name": "logs\\bibsaas-2026-09-14.log",
+            "hash": "9c99eccd41b5a21921ef027d1f817d271f399e71b0a220faeaa611af6f234a7c"
+        },
+        {
+            "date": 1789446060370,
+            "name": "logs\\bibsaas-2026-09-15.log",
+            "hash": "1533c981489d1edae5b7569530d5e612fabe27dff2307e73508cc9c9268e6a7f"
+        }
+    ],
+    "hashType": "sha256"
+}

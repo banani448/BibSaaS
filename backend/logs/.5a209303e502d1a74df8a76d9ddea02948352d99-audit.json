@@ -1,0 +1,50 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "logs\\.5a209303e502d1a74df8a76d9ddea02948352d99-audit.json",
+    "files": [
+        {
+            "date": 1788818538580,
+            "name": "logs\\rejections-2026-09-07.log",
+            "hash": "f37e444da9f8dede95a24ab8e02cf7d2db56b4a40375b6d8a94e001d811f45ee"
+        },
+        {
+            "date": 1788907494277,
+            "name": "logs\\rejections-2026-09-08.log",
+            "hash": "211725d87a6c03157592a68d8451c0a6dc5633d844ca5b9ae4cf74d5974e272e"
+        },
+        {
+            "date": 1788965247185,
+            "name": "logs\\rejections-2026-09-09.log",
+            "hash": "9ee873a2f5d50e4d61064b7ec80411189b3800fd6cf31e8cab43da191bc5ef68"
+        },
+        {
+            "date": 1789124041452,
+            "name": "logs\\rejections-2026-09-11.log",
+            "hash": "d0c1145d0376af3cdb8ab056df49d128d3c1f6c3bed01e1d9542b79ce2e61f09"
+        },
+        {
+            "date": 1789191419004,
+            "name": "logs\\rejections-2026-09-12.log",
+            "hash": "e1d8af4dcd15d0d71c70cf5d33c401360f27098c3ca858728bcc887877fa3905"
+        },
+        {
+            "date": 1789321327920,
+            "name": "logs\\rejections-2026-09-13.log",
+            "hash": "affa2ef97b58581e64191ce4d49090d916db1f4255baa7c2eb4fa7900ba51ee6"
+        },
+        {
+            "date": 1789368002471,
+            "name": "logs\\rejections-2026-09-14.log",
+            "hash": "734f78d58dd843c9090963167e09a4f64c902c4bc78b801f5c84ff3fbaaae776"
+        },
+        {
+            "date": 1789446060385,
+            "name": "logs\\rejections-2026-09-15.log",
+            "hash": "fcaa20cbc68ebb4ec22c751ee2d8dcaf935424cf3c3ff9a85d1dcb2dd38e45e3"
+        }
+    ],
+    "hashType": "sha256"
+}

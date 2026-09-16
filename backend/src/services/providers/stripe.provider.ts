@@ -40,7 +40,7 @@ class StripeProvider {
   private stripe: Stripe | null;
 
   constructor() {
-    this.enabled = config.STRIPE_ENABLED === 'true';
+    this.enabled = config.STRIPE_ENABLED;
 
     this.stripe =
       this.enabled && config.STRIPE_SECRET_KEY
@@ -93,7 +93,7 @@ class StripeProvider {
       providerPaymentId: intent.id,
       providerTransactionId: intent.id,
       providerStatus: intent.status,
-      clientSecret: intent.client_secret,
+      clientSecret: intent.client_secret || undefined,
     };
   }
 
@@ -142,7 +142,7 @@ class StripeProvider {
       config.STRIPE_WEBHOOK_SECRET
     );
 
-    const object = event.data.object;
+    const object = event.data.object as Stripe.PaymentIntent;
 
     if (event.type === 'payment_intent.succeeded') {
       return {

@@ -325,6 +325,44 @@ class SalonService {
 
     return updatedSalon;
   }
+
+  async addBarberToSalon(salonId: string, barberId: string) {
+    const salon = await prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { id: true },
+    });
+    if (!salon) {
+      throw new AppError('Salon not found', 404, 'SALON_NOT_FOUND');
+    }
+
+    const barber = await prisma.barber.findUnique({
+      where: { id: barberId },
+      select: { id: true },
+    });
+    if (!barber) {
+      throw new AppError('Barber not found', 404, 'BARBER_NOT_FOUND');
+    }
+
+    return prisma.barber.update({
+      where: { id: barberId },
+      data: { salonId },
+    });
+  }
+
+  async removeBarberFromSalon(salonId: string, barberId: string) {
+    const barber = await prisma.barber.findFirst({
+      where: { id: barberId, salonId },
+      select: { id: true },
+    });
+    if (!barber) {
+      throw new AppError('Barber not found in salon', 404, 'BARBER_NOT_FOUND');
+    }
+
+    return prisma.barber.update({
+      where: { id: barberId },
+      data: { salonId: null },
+    });
+  }
 }
 
 export default new SalonService();

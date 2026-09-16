@@ -99,7 +99,7 @@ class BookingService {
         salonId,
         scheduledAt: bookingStart,
         duration,
-        price: price ? BigInt(price) : null,
+        price: price ?? null,
         notes,
         status: 'PENDING',
       },
@@ -128,9 +128,12 @@ class BookingService {
   /**
    * Get booking by ID
    */
-  async getBookingById(bookingId: string) {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+  async getBookingById(bookingId: string, clientId?: string) {
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        ...(clientId ? { clientId } : {}),
+      },
       include: {
         client: {
           select: {
@@ -169,16 +172,30 @@ class BookingService {
   /**
    * Update booking
    */
-  async updateBooking(bookingId: string, data: UpdateBookingParams) {
+  async updateBooking(
+    bookingId: string,
+    data: UpdateBookingParams,
+    clientId?: string,
+  ) {
     const { scheduledDate, duration, notes, status, price } = data;
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      select: { id: true, status: true, barberId: true, scheduledAt: true },
+      select: {
+        id: true,
+        clientId: true,
+        status: true,
+        barberId: true,
+        scheduledAt: true,
+      },
     });
 
     if (!booking) {
       throw new AppError('Booking not found', 404, 'BOOKING_NOT_FOUND');
+    }
+
+    if (clientId && booking.clientId !== clientId) {
+      throw new AppError('You can only update your own bookings', 403, 'FORBIDDEN');
     }
 
     // Cannot update completed or cancelled bookings
@@ -216,7 +233,7 @@ class BookingService {
         ...(duration && { duration }),
         ...(notes !== undefined && { notes }),
         ...(status && { status: status as any }),
-        ...(price !== undefined && { price: BigInt(price) }),
+        ...(price !== undefined && { price }),
       },
       include: {
         barber: {

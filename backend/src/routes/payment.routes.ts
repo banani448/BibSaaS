@@ -1,57 +1,145 @@
-import { Router } from 'express';
-import paymentController from '../controllers/payment.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { Router } from "express";
+import paymentController from "../controllers/payment.controller";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
 
 /**
- * @route   POST /api/payments
- * @desc    Create a new payment
- * @access  Private
+ * ============================================================
+ * PAYMENT ROUTES
+ * ============================================================
+ *
+ * Base route:
+ * /api/payments
+ *
+ * Providers:
+ * - SIMULATED
+ * - STRIPE
+ * - OPENPAY
+ * ============================================================
  */
-router.post('/', authenticate, paymentController.createPayment.bind(paymentController));
 
 /**
- * @route   GET /api/payments/:id
- * @desc    Get payment by ID
- * @access  Private
+ * ============================================================
+ * CREATE PAYMENT
+ * ============================================================
+ *
+ * POST /api/payments
+ *
+ * Authentication required.
  */
-router.get('/:id', authenticate, paymentController.getPayment.bind(paymentController));
+router.post(
+  "/",
+  authenticate,
+  paymentController.createPayment.bind(paymentController),
+);
 
 /**
- * @route   GET /api/payments/:id/verify
- * @desc    Verify payment status
- * @access  Private
+ * ============================================================
+ * MY PAYMENTS
+ * ============================================================
+ *
+ * GET /api/payments
+ *
+ * Authentication required.
  */
-router.get('/:id/verify', authenticate, paymentController.verifyPayment.bind(paymentController));
+router.get(
+  "/",
+  authenticate,
+  paymentController.getMyPayments.bind(paymentController),
+);
 
 /**
- * @route   POST /api/payments/simulated
- * @desc    Simulate payment (development only)
- * @access  Private
+ * ============================================================
+ * OPENPAY WEBHOOK
+ * ============================================================
+ *
+ * POST /api/payments/webhooks/openpay
+ *
+ * IMPORTANT:
+ * No JWT authentication here.
+ *
+ * OpenPay must be able to call this endpoint directly.
  */
-router.post('/simulated', authenticate, paymentController.simulatePayment.bind(paymentController));
+router.post(
+  "/webhooks/openpay",
+  paymentController.openPayWebhook.bind(paymentController),
+);
 
 /**
- * @route   POST /api/payments/webhooks/mtn
- * @desc    MTN Mobile Money webhook
- * @access  Public
+ * ============================================================
+ * STRIPE WEBHOOK
+ * ============================================================
+ *
+ * POST /api/payments/webhooks/stripe
+ *
+ * IMPORTANT:
+ * The Stripe webhook requires the RAW request body
+ * for signature verification.
+ *
+ * The raw body parser must therefore be configured at
+ * application/server level before this route if required
+ * by your StripeProvider.
  */
-router.post('/webhooks/mtn', paymentController.mtnWebhook.bind(paymentController));
+router.post(
+  "/webhooks/stripe",
+  paymentController.stripeWebhook.bind(paymentController),
+);
 
 /**
- * @route   POST /api/payments/webhooks/airtel
- * @desc    Airtel Money webhook
- * @access  Public
+ * ============================================================
+ * SIMULATED PAYMENT
+ * ============================================================
+ *
+ * POST /api/payments/simulated
+ *
+ * Only available outside production.
  */
-router.post('/webhooks/airtel', paymentController.airtelWebhook.bind(paymentController));
+if (process.env.NODE_ENV !== "production") {
+  router.post(
+    "/simulated",
+    authenticate,
+    paymentController.simulatePayment.bind(paymentController),
+  );
+}
 
 /**
- * @route   POST /api/payments/webhooks/stripe
- * @desc    Stripe webhook
- * @access  Public
+ * ============================================================
+ * PAYMENT VERIFICATION
+ * ============================================================
+ *
+ * GET /api/payments/:id/verify
  */
-router.post('/webhooks/stripe', paymentController.stripeWebhook.bind(paymentController));
+router.get(
+  "/:id/verify",
+  authenticate,
+  paymentController.verifyPayment.bind(paymentController),
+);
+
+/**
+ * ============================================================
+ * CANCEL PAYMENT
+ * ============================================================
+ *
+ * POST /api/payments/:id/cancel
+ */
+router.post(
+  "/:id/cancel",
+  authenticate,
+  paymentController.cancelPayment.bind(paymentController),
+);
+
+/**
+ * ============================================================
+ * GET PAYMENT
+ * ============================================================
+ *
+ * GET /api/payments/:id
+ */
+router.get(
+  "/:id",
+  authenticate,
+  paymentController.getPayment.bind(paymentController),
+);
 
 export default router;
-

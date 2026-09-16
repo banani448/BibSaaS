@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { generateAccessToken, generateRefreshToken, JwtPayload, RefreshTokenPayload } from '../config/jwt';
+import { generateAccessToken, generateRefreshToken, type JwtPayload, type RefreshTokenPayload, type UserRole } from '../config/jwt';
 import prisma from '../config/prisma';
 import config from '../config/env';
 import { AppError } from '../middlewares/error.middleware';
@@ -32,7 +32,18 @@ export class AuthService {
    * Register a new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
-    const { email, password, firstName, lastName, phone } = data;
+    const { password, firstName, lastName, phone } = data;
+
+    if (
+      typeof data.email !== 'string' ||
+      typeof password !== 'string' ||
+      !data.email.trim() ||
+      !password
+    ) {
+      throw new AppError('Email and password are required', 400, 'INVALID_AUTH_INPUT');
+    }
+
+    const email = data.email.trim().toLowerCase();
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -70,14 +81,18 @@ export class AuthService {
 
     // Generate tokens
     const accessToken = generateAccessToken({
+      sub: user.id,
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as UserRole,
+      tokenType: 'access',
     });
 
     const refreshToken = generateRefreshToken({
+      sub: user.id,
       userId: user.id,
-      tokenVersion: 0,
+      role: user.role as UserRole,
+      tokenType: 'refresh',
     });
 
     // Store refresh token
@@ -100,7 +115,18 @@ export class AuthService {
    * Login user
    */
   async login(data: LoginData): Promise<AuthResponse> {
-    const { email, password } = data;
+    const { password } = data;
+
+    if (
+      typeof data.email !== 'string' ||
+      typeof password !== 'string' ||
+      !data.email.trim() ||
+      !password
+    ) {
+      throw new AppError('Email and password are required', 400, 'INVALID_AUTH_INPUT');
+    }
+
+    const email = data.email.trim().toLowerCase();
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -128,34 +154,38 @@ export class AuthService {
 
     // Generate tokens
     const accessToken = generateAccessToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
+     sub: user.id,
+     userId: user.id,
+     email: user.email,
+     role: user.role as UserRole,
+     tokenType: 'access',
+   });
 
-    const refreshToken = generateRefreshToken({
-      userId: user.id,
-      tokenVersion: 0,
-    });
+   const refreshToken = generateRefreshToken({
+     sub: user.id,
+     userId: user.id,
+     role: user.role as UserRole,
+     tokenType: 'refresh',
+   });
 
-    // Store refresh token
-    await prisma.userSession.create({
-      data: {
-        userId: user.id,
-        refreshTokenHash: await bcrypt.hash(refreshToken, config.BCRYPT_SALT_ROUNDS),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      },
-    });
+   // Store refresh token
+   await prisma.userSession.create({
+     data: {
+       userId: user.id,
+       refreshTokenHash: await bcrypt.hash(refreshToken, config.BCRYPT_SALT_ROUNDS),
+       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+     },
+   });
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      accessToken,
-      refreshToken,
-    };
+   return {
+     user: {
+       id: user.id,
+       email: user.email,
+       role: user.role,
+     },
+     accessToken,
+     refreshToken,
+   };
   }
 
   /**
@@ -185,7 +215,7 @@ export class AuthService {
     }
 
     // Verify refresh token exists in database
-    const session = await prisma.userSession.findFirst({
+    const sessions = await prisma.userSession.findMany({
       where: {
         userId: user.id,
         revokedAt: null,
@@ -195,27 +225,32 @@ export class AuthService {
       },
     });
 
+    let session: (typeof sessions)[number] | undefined;
+    for (const candidate of sessions) {
+      if (await bcrypt.compare(refreshToken, candidate.refreshTokenHash)) {
+        session = candidate;
+        break;
+      }
+    }
+
     if (!session) {
       throw new AppError('Invalid or expired refresh token', 401, 'INVALID_REFRESH_TOKEN');
     }
 
-    // Verify refresh token hash
-    const isTokenValid = await bcrypt.compare(refreshToken, session.refreshTokenHash);
-
-    if (!isTokenValid) {
-      throw new AppError('Invalid refresh token', 401, 'INVALID_REFRESH_TOKEN');
-    }
-
     // Generate new tokens
     const newAccessToken = generateAccessToken({
+      sub: user.id,
       userId: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as UserRole,
+      tokenType: 'access',
     });
 
     const newRefreshToken = generateRefreshToken({
+      sub: user.id,
       userId: user.id,
-      tokenVersion: payload.tokenVersion + 1,
+      role: user.role as UserRole,
+      tokenType: 'refresh',
     });
 
     // Update session with new refresh token
@@ -238,20 +273,28 @@ export class AuthService {
    * Logout user
    */
   async logout(userId: string, refreshToken: string): Promise<void> {
-    // Revoke the refresh token session
-    const session = await prisma.userSession.findFirst({
+    if (!refreshToken) {
+      throw new AppError('Refresh token is required', 400, 'REFRESH_TOKEN_REQUIRED');
+    }
+
+    const sessions = await prisma.userSession.findMany({
       where: {
         userId,
         revokedAt: null,
       },
     });
 
-    if (session) {
-      await prisma.userSession.update({
-        where: { id: session.id },
-        data: { revokedAt: new Date() },
-      });
+    for (const session of sessions) {
+      if (await bcrypt.compare(refreshToken, session.refreshTokenHash)) {
+        await prisma.userSession.update({
+          where: { id: session.id },
+          data: { revokedAt: new Date() },
+        });
+        return;
+      }
     }
+
+    throw new AppError('Invalid refresh token', 401, 'INVALID_REFRESH_TOKEN');
   }
 
   /**

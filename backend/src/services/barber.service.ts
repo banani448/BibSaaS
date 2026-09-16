@@ -166,6 +166,22 @@ class BarberService {
     return updatedBarber;
   }
 
+  async toggleAvailability(barberId: string) {
+    const barber = await prisma.barber.findUnique({
+      where: { id: barberId },
+      select: { id: true, isAvailable: true },
+    });
+
+    if (!barber) {
+      throw new AppError('Barber not found', 404, 'BARBER_NOT_FOUND');
+    }
+
+    return prisma.barber.update({
+      where: { id: barberId },
+      data: { isAvailable: !barber.isAvailable },
+    });
+  }
+
   /**
    * Delete barber profile
    */

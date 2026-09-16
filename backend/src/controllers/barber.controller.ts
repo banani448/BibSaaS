@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import barberService from '../services/barber.service';
 
@@ -8,7 +9,7 @@ class BarberController {
    */
   async createBarber(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -18,7 +19,17 @@ class BarberController {
         });
       }
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar } = req.body;
+      const {
+        salonId,
+        firstName,
+        lastName,
+        phone,
+        specializations,
+        bio,
+        experience,
+        workingHours,
+        avatar,
+      } = req.body;
 
       if (!firstName || !lastName || !phone) {
         return res.status(400).json({
@@ -31,14 +42,10 @@ class BarberController {
       const barber = await barberService.createBarber({
         userId,
         salonId,
-        firstName,
-        lastName,
-        phone,
-        specializations,
-        bio,
-        experience,
-        workingHours,
-        avatar,
+        professionalName: [firstName, lastName].filter(Boolean).join(' '),
+        biography: bio,
+        yearsExperience:
+          experience !== undefined ? Number(experience) : undefined,
       });
 
       return res.status(201).json({
@@ -57,7 +64,7 @@ class BarberController {
    */
   async getMyBarberProfile(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -101,9 +108,13 @@ class BarberController {
    * PUT /api/barbers/me
    * Update current user's barber profile
    */
-  async updateMyBarberProfile(req: Request, res: Response, next: NextFunction) {
+  async updateMyBarberProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -115,9 +126,7 @@ class BarberController {
 
       const barber = await barberService.getBarberByUserId(userId);
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar, isAvailable } = req.body;
-
-      const updatedBarber = await barberService.updateBarber(barber.id, {
+      const {
         salonId,
         firstName,
         lastName,
@@ -127,6 +136,16 @@ class BarberController {
         experience,
         workingHours,
         avatar,
+        isAvailable,
+      } = req.body;
+
+      const updatedBarber = await barberService.updateBarber(barber.id, {
+        salonId,
+        professionalName:
+          [firstName, lastName].filter(Boolean).join(' ') || undefined,
+        biography: bio,
+        yearsExperience:
+          experience !== undefined ? Number(experience) : undefined,
         isAvailable,
       });
 
@@ -148,9 +167,7 @@ class BarberController {
     try {
       const { id } = req.params;
 
-      const { salonId, firstName, lastName, phone, specializations, bio, experience, workingHours, avatar, isAvailable } = req.body;
-
-      const updatedBarber = await barberService.updateBarber(id, {
+      const {
         salonId,
         firstName,
         lastName,
@@ -160,6 +177,16 @@ class BarberController {
         experience,
         workingHours,
         avatar,
+        isAvailable,
+      } = req.body;
+
+      const updatedBarber = await barberService.updateBarber(id, {
+        salonId,
+        professionalName:
+          [firstName, lastName].filter(Boolean).join(' ') || undefined,
+        biography: bio,
+        yearsExperience:
+          experience !== undefined ? Number(experience) : undefined,
         isAvailable,
       });
 
@@ -177,9 +204,13 @@ class BarberController {
    * DELETE /api/barbers/me
    * Delete current user's barber profile
    */
-  async deleteMyBarberProfile(req: Request, res: Response, next: NextFunction) {
+  async deleteMyBarberProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -227,13 +258,19 @@ class BarberController {
    */
   async listBarbers(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page = 1, limit = 20, salonId, isAvailable, search } = req.query;
+      const { page = 1, limit = 20, salonId, isAvailable, search } =
+        req.query;
 
       const result = await barberService.listBarbers({
         page: Number(page),
         limit: Number(limit),
         salonId: salonId as string,
-        isAvailable: isAvailable === 'true' ? true : isAvailable === 'false' ? false : undefined,
+        isAvailable:
+          isAvailable === 'true'
+            ? true
+            : isAvailable === 'false'
+              ? false
+              : undefined,
         search: search as string,
       });
 
@@ -271,7 +308,7 @@ class BarberController {
    */
   async getMyBarberStats(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -298,9 +335,13 @@ class BarberController {
    * PATCH /api/barbers/me/availability
    * Toggle current barber's availability
    */
-  async toggleMyAvailability(req: Request, res: Response, next: NextFunction) {
+  async toggleMyAvailability(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -346,3 +387,4 @@ class BarberController {
 }
 
 export default new BarberController();
+

@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from 'express';
 import dashboardService from '../services/dashboard.service';
 
@@ -8,7 +9,7 @@ class DashboardController {
    */
   async getClientDashboard(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -24,7 +25,7 @@ class DashboardController {
         success: true,
         data,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -35,7 +36,7 @@ class DashboardController {
    */
   async getBarberDashboard(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -51,7 +52,7 @@ class DashboardController {
         success: true,
         data,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -62,7 +63,7 @@ class DashboardController {
    */
   async getSalonDashboard(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.userId;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({
@@ -78,7 +79,7 @@ class DashboardController {
         success: true,
         data,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -95,7 +96,7 @@ class DashboardController {
         success: true,
         data,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -109,16 +110,25 @@ class DashboardController {
       const { startDate, endDate, salonId } = req.query;
 
       const stats = await dashboardService.getRevenueStats({
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined,
-        salonId: salonId as string,
+        startDate:
+          typeof startDate === 'string'
+            ? new Date(startDate)
+            : undefined,
+        endDate:
+          typeof endDate === 'string'
+            ? new Date(endDate)
+            : undefined,
+        salonId:
+          typeof salonId === 'string'
+            ? salonId
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: stats,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -132,20 +142,33 @@ class DashboardController {
       const { startDate, endDate, salonId, barberId } = req.query;
 
       const stats = await dashboardService.getBookingStats({
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined,
-        salonId: salonId as string,
-        barberId: barberId as string,
+        startDate:
+          typeof startDate === 'string'
+            ? new Date(startDate)
+            : undefined,
+        endDate:
+          typeof endDate === 'string'
+            ? new Date(endDate)
+            : undefined,
+        salonId:
+          typeof salonId === 'string'
+            ? salonId
+            : undefined,
+        barberId:
+          typeof barberId === 'string'
+            ? barberId
+            : undefined,
       });
 
       return res.json({
         success: true,
         data: stats,
       });
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
 }
 
 export default new DashboardController();
+

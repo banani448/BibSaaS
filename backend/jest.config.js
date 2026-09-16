@@ -58,10 +58,6 @@ module.exports = {
 
   testTimeout: 30000,
 
-  setupFilesAfterEnv: [
-    "<rootDir>/src/tests/setup.ts",
-  ],
-
   preset: "ts-jest",
 
   transform: {
@@ -79,4 +75,3 @@ module.exports = {
     "/coverage/",
   ],
 };
-

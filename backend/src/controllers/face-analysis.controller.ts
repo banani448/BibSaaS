@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction } from "express";
 import { FaceAnalysisService } from "../services/face-analysis.service";
 
@@ -13,13 +14,20 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id;
 
-      const result =
-        await faceAnalysisService.analyzeFace(
-          userId,
-          req.file
-        );
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
+      const result = await faceAnalysisService.analyzeFace(
+        userId,
+        req.file
+      );
 
       return res.status(200).json({
         success: true,
@@ -40,13 +48,20 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
-      const userId = req.user.id;
+      const userId = req.user?.id;
 
-      const result =
-        await faceAnalysisService.analyzeFaceByUrl(
-          userId,
-          req.body.imageUrl
-        );
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
+      const result = await faceAnalysisService.analyzeFaceByUrl(
+        userId,
+        req.body.imageUrl
+      );
 
       return res.status(200).json({
         success: true,
@@ -66,10 +81,18 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
       const analyses =
-        await faceAnalysisService.getUserAnalyses(
-          req.user.id
-        );
+        await faceAnalysisService.getUserAnalyses(userId);
 
       return res.status(200).json({
         success: true,
@@ -112,9 +135,19 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
       await faceAnalysisService.deleteAnalysis(
         req.params.id,
-        req.user.id
+        userId
       );
 
       return res.status(200).json({
@@ -158,9 +191,19 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
       const recommendation =
         await faceAnalysisService.saveRecommendation(
-          req.user.id,
+          userId,
           req.body
         );
 
@@ -183,9 +226,19 @@ export class FaceAnalysisController {
     next: NextFunction
   ) {
     try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+          code: "AUTH_REQUIRED",
+        });
+      }
+
       const recommendations =
         await faceAnalysisService.getMyRecommendations(
-          req.user.id
+          userId
         );
 
       return res.status(200).json({
@@ -241,3 +294,4 @@ export class FaceAnalysisController {
 }
 
 export default new FaceAnalysisController();
+
